@@ -1,4 +1,4 @@
-import { Package, Search, BarChart3, Menu, X, Upload, Check, Clock, Zap } from 'lucide-react';
+import { Package, Search, BarChart3, Menu, X, Upload, Check, Clock, Zap, X as XIcon, Sparkles } from 'lucide-react';
 import { useState } from 'react';
 
 interface LostItem {
@@ -19,9 +19,22 @@ interface FoundItem {
   status: 'returned' | 'not-returned';
 }
 
+interface MatchedItem {
+  id: string;
+  image: string;
+  name: string;
+  company: string;
+  date: string;
+  matchPercentage: number;
+}
+
 export default function Dashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeView, setActiveView] = useState<'home' | 'lost' | 'found' | 'dashboard' | 'heatmap'>('home');
+  
+  // Modal State
+  const [selectedLostItem, setSelectedLostItem] = useState<LostItem | null>(null);
+  const [selectedFoundItem, setSelectedFoundItem] = useState<FoundItem | null>(null);
   
   // Lost Item Form State
   const [lostFormData, setLostFormData] = useState({
@@ -71,6 +84,65 @@ export default function Dashboard() {
       status: 'not-returned',
     },
   ]);
+
+  // Helper function to generate mock matched items
+  const getMatchedFoundItems = (lostItem: LostItem): MatchedItem[] => {
+    return [
+      {
+        id: '1',
+        image: 'https://via.placeholder.com/200?text=Match+1',
+        name: 'Similar Item Found',
+        company: lostItem.company,
+        date: '2025-12-19',
+        matchPercentage: 92,
+      },
+      {
+        id: '2',
+        image: 'https://via.placeholder.com/200?text=Match+2',
+        name: 'Possible Match',
+        company: lostItem.company,
+        date: '2025-12-18',
+        matchPercentage: 78,
+      },
+      {
+        id: '3',
+        image: 'https://via.placeholder.com/200?text=Match+3',
+        name: 'Related Item',
+        company: lostItem.company,
+        date: '2025-12-17',
+        matchPercentage: 65,
+      },
+    ];
+  };
+
+  const getMatchedLostItems = (foundItem: FoundItem): MatchedItem[] => {
+    return [
+      {
+        id: '1',
+        image: 'https://via.placeholder.com/200?text=Lost+Match+1',
+        name: 'Similar Lost Item',
+        company: foundItem.company,
+        date: '2025-12-20',
+        matchPercentage: 88,
+      },
+      {
+        id: '2',
+        image: 'https://via.placeholder.com/200?text=Lost+Match+2',
+        name: 'Possible Lost Match',
+        company: foundItem.company,
+        date: '2025-12-19',
+        matchPercentage: 75,
+      },
+      {
+        id: '3',
+        image: 'https://via.placeholder.com/200?text=Lost+Match+3',
+        name: 'Related Lost Item',
+        company: foundItem.company,
+        date: '2025-12-18',
+        matchPercentage: 62,
+      },
+    ];
+  };
 
   const menuItems = [
     { icon: Package, label: 'Home', id: 'home' },
@@ -146,6 +218,174 @@ export default function Dashboard() {
 
   const handleFoundCarouselNext = () => {
     setFoundCarouselIndex(Math.min(foundItems.length - 1, foundCarouselIndex + 1));
+  };
+
+  // Beautiful Modal Component for Matched Items
+  const MatchedItemsModal = ({ 
+    isOpen, 
+    onClose, 
+    sourceItem, 
+    matchedItems, 
+    isLostItemMode 
+  }: { 
+    isOpen: boolean; 
+    onClose: () => void; 
+    sourceItem: LostItem | FoundItem | null; 
+    matchedItems: MatchedItem[]; 
+    isLostItemMode: boolean;
+  }) => {
+    if (!isOpen || !sourceItem) return null;
+
+    return (
+      <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="w-full max-w-4xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 rounded-2xl border border-slate-700/50 shadow-2xl max-h-[90vh] overflow-y-auto">
+          {/* Header */}
+          <div className="sticky top-0 bg-gradient-to-b from-slate-900 to-slate-800/50 border-b border-slate-700/50 p-8 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className={`p-3 rounded-lg ${isLostItemMode ? 'bg-blue-500/20' : 'bg-green-500/20'}`}>
+                <Sparkles className={isLostItemMode ? 'w-6 h-6 text-blue-400' : 'w-6 h-6 text-green-400'} />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-white">
+                  {isLostItemMode ? 'Matching Found Items' : 'Matching Lost Items'}
+                </h2>
+                <p className="text-gray-400 text-sm mt-1">
+                  {isLostItemMode 
+                    ? `We found ${matchedItems.length} items that match your lost item`
+                    : `We found ${matchedItems.length} lost items that match this item`
+                  }
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-slate-700/50 rounded-lg transition-colors"
+            >
+              <XIcon className="w-6 h-6 text-gray-400" />
+            </button>
+          </div>
+
+          {/* Source Item Preview */}
+          <div className="p-8 border-b border-slate-700/50 bg-slate-800/20">
+            <p className="text-sm text-gray-400 mb-4 font-semibold uppercase tracking-wide">You {isLostItemMode ? 'Lost' : 'Found'}:</p>
+            <div className="flex gap-6">
+              <div className="w-40 h-40 rounded-xl overflow-hidden border border-slate-700 flex-shrink-0">
+                <img 
+                  src={sourceItem.image} 
+                  alt={sourceItem.name}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-2xl font-bold text-white mb-2">{sourceItem.name}</h3>
+                <p className="text-gray-400 text-lg mb-4">{sourceItem.company}</p>
+                <p className="text-sm text-gray-500">
+                  {isLostItemMode ? `Reported: ${'dateAdded' in sourceItem ? sourceItem.dateAdded : ''}` : `Found: ${'dateFound' in sourceItem ? sourceItem.dateFound : ''}`}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Matched Items Grid */}
+          <div className="p-8">
+            <div className="grid grid-cols-1 gap-6">
+              {matchedItems.length > 0 ? (
+                matchedItems.map((item, index) => (
+                  <div
+                    key={item.id}
+                    className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-xl border border-slate-700/50 p-6 hover:border-slate-600 transition-all duration-300 hover:shadow-lg hover:shadow-slate-500/10 group"
+                  >
+                    <div className="flex gap-6">
+                      {/* Item Image */}
+                      <div className="w-48 h-40 rounded-lg overflow-hidden border border-slate-700 flex-shrink-0">
+                        <img 
+                          src={item.image} 
+                          alt={item.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      </div>
+
+                      {/* Item Info */}
+                      <div className="flex-1 flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-start justify-between mb-2">
+                            <div>
+                              <h3 className="text-xl font-bold text-white mb-1">{item.name}</h3>
+                              <p className="text-gray-400">{item.company}</p>
+                            </div>
+                            {/* Match Percentage Badge */}
+                            <div className="flex flex-col items-center">
+                              <div className="relative w-24 h-24 flex items-center justify-center">
+                                {/* Circular Progress Background */}
+                                <svg className="absolute w-full h-full" viewBox="0 0 100 100">
+                                  <circle 
+                                    cx="50" 
+                                    cy="50" 
+                                    r="45" 
+                                    fill="none" 
+                                    stroke="#334155" 
+                                    strokeWidth="6"
+                                  />
+                                  <circle 
+                                    cx="50" 
+                                    cy="50" 
+                                    r="45" 
+                                    fill="none" 
+                                    stroke={item.matchPercentage >= 80 ? '#10b981' : item.matchPercentage >= 70 ? '#f59e0b' : '#ef4444'} 
+                                    strokeWidth="6"
+                                    strokeDasharray={`${item.matchPercentage * 2.83} 283`}
+                                    strokeLinecap="round"
+                                    className="transition-all duration-500"
+                                  />
+                                </svg>
+                                {/* Percentage Text */}
+                                <div className="text-center z-10">
+                                  <p className={`text-2xl font-bold ${item.matchPercentage >= 80 ? 'text-green-400' : item.matchPercentage >= 70 ? 'text-amber-400' : 'text-red-400'}`}>
+                                    {item.matchPercentage}%
+                                  </p>
+                                  <p className="text-xs text-gray-400 mt-1">Match</p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <p className="text-sm text-gray-400 mt-4">
+                            {isLostItemMode ? 'Found' : 'Reported'}: {item.date}
+                          </p>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex gap-3 mt-6">
+                          <button className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-500/20 to-indigo-500/20 border border-blue-500/50 rounded-lg text-blue-300 hover:from-blue-500/30 hover:to-indigo-500/30 transition-all font-medium">
+                            View Details
+                          </button>
+                          <button className="flex-1 px-4 py-3 bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-500/50 rounded-lg text-green-300 hover:from-green-500/30 hover:to-emerald-500/30 transition-all font-medium">
+                            Contact Owner
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-gray-400 text-lg">No matches found yet. Check back soon!</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="border-t border-slate-700/50 p-8 bg-slate-800/20">
+            <button
+              onClick={onClose}
+              className="w-full px-6 py-3 bg-gradient-to-r from-slate-700 to-slate-800 hover:from-slate-600 hover:to-slate-700 text-white font-semibold rounded-lg transition-all duration-300"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -696,14 +936,19 @@ export default function Dashboard() {
                               {lostItems.map((item) => (
                                 <div
                                   key={item.id}
-                                  className="flex-shrink-0 w-72 bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-2xl border border-slate-700/50 overflow-hidden hover:border-blue-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/10"
+                                  onClick={() => setSelectedLostItem(item)}
+                                  className="flex-shrink-0 w-72 bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-2xl border border-slate-700/50 overflow-hidden hover:border-blue-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/10 cursor-pointer group"
                                 >
-                                  <div className="h-56 bg-slate-800 overflow-hidden">
+                                  <div className="h-56 bg-slate-800 overflow-hidden relative">
                                     <img
                                       src={item.image}
                                       alt={item.name}
-                                      className="w-full h-full object-cover hover:scale-110 transition-transform duration-500"
+                                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                                     />
+                                    {/* Overlay on hover */}
+                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300 flex items-center justify-center">
+                                      <span className="text-white font-semibold text-sm opacity-0 group-hover:opacity-100 transition-opacity">View Matches</span>
+                                    </div>
                                   </div>
                                   <div className="p-6">
                                     <h3 className="text-lg font-bold text-white mb-2">{item.name}</h3>
@@ -801,14 +1046,19 @@ export default function Dashboard() {
                               {foundItems.map((item) => (
                                 <div
                                   key={item.id}
-                                  className="flex-shrink-0 w-72 bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-2xl border border-slate-700/50 overflow-hidden hover:border-green-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-green-500/10"
+                                  onClick={() => setSelectedFoundItem(item)}
+                                  className="flex-shrink-0 w-72 bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-2xl border border-slate-700/50 overflow-hidden hover:border-green-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-green-500/10 cursor-pointer group"
                                 >
-                                  <div className="h-56 bg-slate-800 overflow-hidden">
+                                  <div className="h-56 bg-slate-800 overflow-hidden relative">
                                     <img
                                       src={item.image}
                                       alt={item.name}
-                                      className="w-full h-full object-cover hover:scale-110 transition-transform duration-500"
+                                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                                     />
+                                    {/* Overlay on hover */}
+                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300 flex items-center justify-center">
+                                      <span className="text-white font-semibold text-sm opacity-0 group-hover:opacity-100 transition-opacity">View Matches</span>
+                                    </div>
                                   </div>
                                   <div className="p-6">
                                     <h3 className="text-lg font-bold text-white mb-2">{item.name}</h3>
@@ -819,7 +1069,10 @@ export default function Dashboard() {
                                     {/* Return Status Buttons */}
                                     <div className="space-y-2">
                                       <button
-                                        onClick={() => toggleFoundItemStatus(item.id)}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          toggleFoundItemStatus(item.id);
+                                        }}
                                         className={`w-full px-4 py-2 rounded-lg font-semibold transition-all duration-300 text-sm ${
                                           item.status === 'returned'
                                             ? 'bg-green-500/30 text-green-400 border border-green-500/50 hover:bg-green-500/40'
@@ -871,6 +1124,23 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Modals for Matched Items */}
+      <MatchedItemsModal
+        isOpen={!!selectedLostItem}
+        onClose={() => setSelectedLostItem(null)}
+        sourceItem={selectedLostItem}
+        matchedItems={selectedLostItem ? getMatchedFoundItems(selectedLostItem) : []}
+        isLostItemMode={true}
+      />
+
+      <MatchedItemsModal
+        isOpen={!!selectedFoundItem}
+        onClose={() => setSelectedFoundItem(null)}
+        sourceItem={selectedFoundItem}
+        matchedItems={selectedFoundItem ? getMatchedLostItems(selectedFoundItem) : []}
+        isLostItemMode={false}
+      />
     </div>
   );
 }
