@@ -2,6 +2,7 @@ import * as admin from "firebase-admin";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { upsertEmbedding } from "./vertex";
+import { runSimilarityCheck } from "./matcher";
 
 admin.initializeApp();
 
@@ -31,7 +32,7 @@ async function generateSemanticDescription(
 
     Item Name: ${name}
     Category: ${category}
-    Location (if known): ${location ?? "Not specified"}
+    Location: ${location ?? "Unknown"}
     Raw Description: ${rawDescription}
 
     Return ONLY the summary text.
@@ -73,7 +74,7 @@ export const onLostItemCreate = onDocumentCreated(
         );
 
         const embeddingInput = `
-    Item Type: Lost Item
+    Item Type: Lost
     Name: ${data.name}
     Category: ${data.category}
     Description: ${semanticDescription}
@@ -92,6 +93,12 @@ export const onLostItemCreate = onDocumentCreated(
             semanticDescription,
             embeddingId,
         });
+
+        await runSimilarityCheck(
+            event.params.itemId,
+            "lost",
+            embedding
+        );
     }
 );
 
@@ -108,11 +115,11 @@ export const onFoundItemCreate = onDocumentCreated(
             data.name,
             data.rawDescription,
             data.category,
-            data.location 
+            data.location
         );
 
         const embeddingInput = `
-    Item Type: Found Item
+    Item Type: Found
     Name: ${data.name}
     Category: ${data.category}
     Description: ${semanticDescription}
@@ -131,5 +138,13 @@ export const onFoundItemCreate = onDocumentCreated(
             semanticDescription,
             embeddingId,
         });
+
+        await runSimilarityCheck(
+            event.params.itemId,
+            "found",
+            embedding
+        );
     }
 );
+
+export { manualRecheck } from "./manualRecheck";
