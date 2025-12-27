@@ -6,6 +6,8 @@ import { uploadToCloudinary } from './cloudinary';
 import { addDoc, collection, getDocs, orderBy, query, serverTimestamp, where } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import { signOut } from 'firebase/auth';
+import { NITK_LOCATIONS } from './locations';
+import HeatmapView from './HeatMap';
 
 interface LostItem {
   id: string;
@@ -65,6 +67,7 @@ export default function Dashboard() {
   });
 
   const [lostItems, setLostItems] = useState<LostItem[]>([]);
+  const [heatmapPoints, setHeatmapPoints] = useState<any[]>([]);
 
   const [foundItems, setFoundItems] = useState<FoundItem[]>([]);
   
@@ -88,6 +91,13 @@ export default function Dashboard() {
     loadData();
   }, [user]);
 
+  useEffect(() => {
+    if (activeView === "heatmap") {
+      getHeatmapData().then(setHeatmapPoints);
+    }
+  }, [activeView]);
+
+
   const logoutUser = async () => {
     try {
       await signOut(auth);
@@ -97,6 +107,23 @@ export default function Dashboard() {
       toast.error("Failed to sign out");
     }
   };
+
+  async function getHeatmapData() {
+    const snapshot = await getDocs(collection(db, "lost_items"));
+
+    const counts: Record<string, number> = {};
+
+    snapshot.docs.forEach((doc) => {
+      const location = doc.data().location;
+      if (!location || !NITK_LOCATIONS[location]) return;
+      counts[location] = (counts[location] || 0) + 1;
+    });
+
+    return Object.entries(counts).map(([location, count]) => ({
+      location: NITK_LOCATIONS[location],
+      weight: count,
+    }));
+  }
 
   const [lostCarouselIndex, setLostCarouselIndex] = useState(0);
   const [foundCarouselIndex, setFoundCarouselIndex] = useState(0);
@@ -997,16 +1024,17 @@ export default function Dashboard() {
                       <Zap className="w-12 h-12 text-yellow-400" />
                     </div>
 
-                    <div className="flex-1 w-full bg-gradient-to-br from-slate-900 to-slate-950 rounded-lg border-2 border-slate-700 flex items-center justify-center">
-                      <div className="text-center">
-                        <div className="mb-4 flex justify-center">
-                          <Zap className="w-16 h-16 text-yellow-400 opacity-50" />
+                    <div className="flex-1 w-full rounded-lg border-2 border-slate-700 overflow-hidden">
+                      {heatmapPoints.length > 0 ? (
+                        <HeatmapView points={heatmapPoints} />
+                      ) : (
+                        <div className="h-full flex items-center justify-center text-gray-500">
+                          No heatmap data available
                         </div>
-                        <p className="text-gray-400 text-lg">Heatmap coming soon</p>
-                        <p className="text-gray-500 text-sm mt-2">Real-time location tracking of items in your area</p>
-                      </div>
+                      )}
                     </div>
-\
+
+
                     <div className="grid grid-cols-3 gap-6 mt-6">
                       <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-6">
                         <p className="text-blue-400 text-sm font-semibold mb-2">Hot Zones</p>
