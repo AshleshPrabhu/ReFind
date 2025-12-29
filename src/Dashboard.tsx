@@ -151,6 +151,14 @@ export default function Dashboard() {
   }, [activeView, user]);
 
 
+  const checkPhoneNumber = () => {
+    if (!userProfile?.phoneNumber || userProfile.phoneNumber.trim() === '') {
+      toast.error("Please update your phone number before creating lost or found items");
+      return false;
+    }
+    return true;
+  };
+
   const logoutUser = async () => {
     try {
       await signOut(auth);
@@ -168,17 +176,24 @@ export default function Dashboard() {
   const handlePhoneSave = async () => {
     if (!user || !userProfile) return;
     
+    const cleanedPhone = phoneNumber.replace(/\D/g, ''); 
+    if (cleanedPhone.length !== 10) {
+      toast.error("Phone number must be exactly 10 digits");
+      return;
+    }
+    
     try {
       const userRef = doc(db, "users", user.uid);
       await updateDoc(userRef, {
-        phoneNumber: phoneNumber
+        phoneNumber: cleanedPhone
       });
       
       setUserProfile({
         ...userProfile,
-        phoneNumber: phoneNumber
+        phoneNumber: cleanedPhone
       });
       
+      setPhoneNumber(cleanedPhone);
       setIsEditingPhone(false);
       toast.success("Phone number updated successfully");
     } catch (error) {
@@ -340,6 +355,10 @@ export default function Dashboard() {
       return;
     }
 
+    if (!checkPhoneNumber()) {
+      return;
+    }
+
     if (!lostFormData.image) {
       toast.error("Please upload an image");
       return;
@@ -391,6 +410,10 @@ export default function Dashboard() {
 
     if (!user) {
       toast.error("Please login first");
+      return;
+    }
+
+    if (!checkPhoneNumber()) {
       return;
     }
 
@@ -717,10 +740,16 @@ export default function Dashboard() {
               {menuItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = activeView === item.id;
+                const handleNavClick = () => {
+                  if ((item.id === 'lost' || item.id === 'found') && !checkPhoneNumber()) {
+                    return;
+                  }
+                  setActiveView(item.id as any);
+                };
                 return (
                   <button
                     key={item.id}
-                    onClick={() => setActiveView(item.id as any)}
+                    onClick={handleNavClick}
                     className={`w-full flex items-center gap-4 px-6 py-3 rounded-lg transition-all duration-300 group border ${
                       isActive
                         ? 'bg-gradient-to-r from-blue-500/20 to-indigo-500/20 text-white border-blue-500/50'
@@ -787,14 +816,20 @@ export default function Dashboard() {
                         <p className="text-sm font-semibold text-gray-400 uppercase tracking-wide">Quick Actions</p>
                         <div className="space-y-2">
                           <button
-                            onClick={() => setActiveView('lost')}
+                            onClick={() => {
+                              if (!checkPhoneNumber()) return;
+                              setActiveView('lost');
+                            }}
                             className="w-full px-4 py-3 bg-gradient-to-r from-blue-500/20 to-indigo-500/20 border border-blue-500/50 rounded-lg text-blue-300 hover:from-blue-500/30 hover:to-indigo-500/30 hover:border-blue-400/50 transition-all font-medium text-left flex items-center justify-between group"
                           >
                             <span>Report Lost Item</span>
                             <span className="group-hover:translate-x-1 transition-transform">→</span>
                           </button>
                           <button
-                            onClick={() => setActiveView('found')}
+                            onClick={() => {
+                              if (!checkPhoneNumber()) return;
+                              setActiveView('found');
+                            }}
                             className="w-full px-4 py-3 bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-500/50 rounded-lg text-green-300 hover:from-green-500/30 hover:to-emerald-500/30 hover:border-green-400/50 transition-all font-medium text-left flex items-center justify-between group"
                           >
                             <span>Report Found Item</span>
