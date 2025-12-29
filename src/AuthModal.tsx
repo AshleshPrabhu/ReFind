@@ -18,6 +18,7 @@ export async function saveUserToDB(user: any) {
       name: user.displayName ?? "",
       email: user.email,
       image: user.photoURL ?? "",
+      phoneNumber: "",
       createdAt: new Date()
     });
   }

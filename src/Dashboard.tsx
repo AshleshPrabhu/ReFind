@@ -1,9 +1,9 @@
-import { Package, Search, BarChart3, Menu, X, Upload, Check, Clock, Zap, X as XIcon, Sparkles } from 'lucide-react';
+import { Package, Search, BarChart3, Menu, X, Upload, Check, Clock, Zap, X as XIcon, Sparkles, Edit3, LogOut, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useAuth } from './context/AuthContext';
 import { toast } from 'sonner';
 import { uploadToCloudinary } from './cloudinary';
-import { addDoc, collection, getDocs, orderBy, query, serverTimestamp, where } from 'firebase/firestore';
+import { addDoc, collection, getDocs, orderBy, query, serverTimestamp, where, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import { signOut } from 'firebase/auth';
 import { NITK_LOCATIONS } from './locations';
@@ -49,6 +49,10 @@ export default function Dashboard() {
   const {user} = useAuth();
   const [selectedLostItem, setSelectedLostItem] = useState<LostItem | null>(null);
   const [selectedFoundItem, setSelectedFoundItem] = useState<FoundItem | null>(null);
+  
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [isEditingPhone, setIsEditingPhone] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState('');
   
   const [lostFormData, setLostFormData] = useState({
     image: null as File | null,
@@ -98,6 +102,39 @@ export default function Dashboard() {
   }, [activeView]);
 
   useEffect(() => {
+    if (!user) return;
+    
+    const loadUserProfile = async () => {
+      try {
+        const userRef = doc(db, "users", user.uid);
+        const userSnap = await getDoc(userRef);
+        
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          setUserProfile(userData);
+          setPhoneNumber(userData.phoneNumber || '');
+        } else {
+          const newUserProfile = {
+            uid: user.uid,
+            name: user.displayName || '',
+            email: user.email || '',
+            image: user.photoURL || '',
+            phoneNumber: '',
+            createdAt: new Date()
+          };
+          
+          await updateDoc(userRef, newUserProfile);
+          setUserProfile(newUserProfile);
+        }
+      } catch (error) {
+        console.error("Error loading user profile:", error);
+      }
+    };
+    
+    loadUserProfile();
+  }, [user]);
+
+  useEffect(() => {
     if (!user || activeView !== "dashboard") return;
 
     const loadData = async () => {
@@ -122,6 +159,37 @@ export default function Dashboard() {
       console.error("Sign out error:", error);
       toast.error("Failed to sign out");
     }
+  };
+
+  const handlePhoneEdit = () => {
+    setIsEditingPhone(true);
+  };
+
+  const handlePhoneSave = async () => {
+    if (!user || !userProfile) return;
+    
+    try {
+      const userRef = doc(db, "users", user.uid);
+      await updateDoc(userRef, {
+        phoneNumber: phoneNumber
+      });
+      
+      setUserProfile({
+        ...userProfile,
+        phoneNumber: phoneNumber
+      });
+      
+      setIsEditingPhone(false);
+      toast.success("Phone number updated successfully");
+    } catch (error) {
+      console.error("Error updating phone number:", error);
+      toast.error("Failed to update phone number");
+    }
+  };
+
+  const handlePhoneCancel = () => {
+    setPhoneNumber(userProfile?.phoneNumber || '');
+    setIsEditingPhone(false);
   };
 
   async function getHeatmapData() {
@@ -567,8 +635,85 @@ export default function Dashboard() {
 
       <div className="flex pt-20">
         {sidebarOpen && (
-          <div className="fixed left-0 top-20 h-[calc(100vh-80px)] w-72 bg-gradient-to-b from-slate-900/95 to-slate-950/95 border-r border-slate-700/50 backdrop-blur-sm px-8 py-8">
-            <nav className="space-y-3">
+          <div className="fixed left-0 top-20 h-[calc(100vh-80px)] w-80 bg-gradient-to-b from-slate-900/95 to-slate-950/95 border-r border-slate-700/50 backdrop-blur-sm px-8 py-8 flex flex-col">
+            
+            {userProfile && (
+              <div className="mb-8 pb-6 border-b border-slate-700/50">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-16 h-16 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+                    {userProfile.image ? (
+                      <img 
+                        src={userProfile.image} 
+                        alt={userProfile.name || "User"} 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <User className="w-8 h-8 text-white" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-bold text-white mb-1">
+                      {userProfile.name || user?.displayName || "User"}
+                    </h3>
+                    <p className="text-sm text-gray-400 mb-2">
+                      {userProfile.email || user?.email}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-400">Phone Number</span>
+                    {!isEditingPhone && (
+                      <button
+                        onClick={handlePhoneEdit}
+                        className="p-1.5 hover:bg-slate-700/50 rounded-lg transition-colors text-gray-400 hover:text-blue-400"
+                        title="Edit phone number"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                  
+                  {isEditingPhone ? (
+                    <div className="space-y-2">
+                      <input
+                        type="tel"
+                        value={phoneNumber}
+                        onChange={(e) => setPhoneNumber(e.target.value)}
+                        placeholder="Enter phone number"
+                        className="w-full px-3 py-2 bg-slate-800/50 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 transition-all"
+                        autoFocus
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handlePhoneSave}
+                          className="flex-1 px-3 py-1.5 bg-blue-500/20 border border-blue-500/50 text-blue-400 rounded-lg text-sm hover:bg-blue-500/30 transition-colors"
+                        >
+                          Save
+                        </button>
+                        <button
+                          onClick={handlePhoneCancel}
+                          className="flex-1 px-3 py-1.5 bg-slate-700/50 border border-slate-600 text-gray-300 rounded-lg text-sm hover:bg-slate-700 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="px-3 py-2 bg-slate-800/30 border border-slate-700/50 rounded-lg">
+                      <p className="text-white text-sm">
+                        {userProfile.phoneNumber || (
+                          <span className="text-gray-500 italic">No phone number added</span>
+                        )}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <nav className="space-y-3 flex-1">
               {menuItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = activeView === item.id;
@@ -591,17 +736,19 @@ export default function Dashboard() {
               })}
             </nav>
 
-            <div className="absolute bottom-8 left-8 right-8 border-t border-slate-700/50 pt-8">
-              <button className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-semibold rounded-lg transition-all duration-300 shadow-lg shadow-blue-500/20"
-              onClick={logoutUser}
+            <div className="pt-6 border-t border-slate-700/50">
+              <button 
+                onClick={logoutUser}
+                className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-gradient-to-r from-red-500/20 to-red-600/20 hover:from-red-500/30 hover:to-red-600/30 border border-red-500/50 hover:border-red-400/50 text-red-400 hover:text-red-300 font-semibold rounded-lg transition-all duration-300 group"
               >
-                Sign Out
+                <LogOut className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+                <span>Sign Out</span>
               </button>
             </div>
           </div>
         )}
 
-        <div className={`flex-1 ${sidebarOpen ? 'ml-72' : 'ml-0'} transition-all duration-300`}>
+        <div className={`flex-1 ${sidebarOpen ? 'ml-80' : 'ml-0'} transition-all duration-300`}>
           <div className="p-0 min-h-[calc(100vh-80px)]">
             {activeView === 'home' && (
               <div className="w-full h-full">
