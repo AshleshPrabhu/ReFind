@@ -13,22 +13,34 @@ export async function runSimilarityCheck(
     const searchFor = itemType === "lost" ? "found" : "lost";
 
     const matches = await findSimilarItems(embedding, searchFor);
-
-    const filtered = matches.filter(
-        (m) => m.score >= SIMILARITY_THRESHOLD
-    );
+    const filtered = matches.filter(m => m.score >= SIMILARITY_THRESHOLD);
 
     if (filtered.length === 0) return [];
 
-    const formattedMatches = filtered.map((m) => ({
-        itemId: m.id,
-        score: m.score,
-        type: searchFor,
-    }));
+    const docRef = db.collection(`${itemType}_items`).doc(itemId);
+    const snap = await docRef.get();
 
-    await db.collection(`${itemType}_items`)
-        .doc(itemId)
-        .update({ matches: formattedMatches });
+    const existingMatches = snap.data()?.matches || [];
 
-    return formattedMatches;
+    const matchMap = new Map(
+        existingMatches.map((m: any) => [m.itemId, m])
+    );
+
+    filtered.forEach(m => {
+        if (!matchMap.has(m.id)) {
+        matchMap.set(m.id, {
+            itemId: m.id,
+            score: m.score,
+            type: searchFor,
+            status: "pending",
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        }
+    });
+
+    const mergedMatches = Array.from(matchMap.values());
+
+    await docRef.update({ matches: mergedMatches });
+
+    return mergedMatches;
 }

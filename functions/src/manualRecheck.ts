@@ -31,26 +31,47 @@ export const manualRecheck = onCall(async (request) => {
         throw new Error("Embedding not found");
     }
 
-    const matches = await findSimilarItems(
+    const searchFor = type === "lost" ? "found" : "lost";
+
+    const aiMatches = await findSimilarItems(
         [],
-        type === "lost" ? "found" : "lost"
+        searchFor
     );
 
-    const filteredMatches = matches.filter(
+    const filteredMatches = aiMatches.filter(
         (m) => m.score >= SIMILARITY_THRESHOLD
     );
 
-    await docRef.update({
-        matches: filteredMatches.map((m) => ({
+    const existingMatches = data.matches || [];
+
+    const matchMap = new Map<string, any>();
+    existingMatches.forEach((m: any) => {
+        matchMap.set(m.itemId, m);
+    });
+
+    filteredMatches.forEach((m) => {
+        if (!matchMap.has(m.id)) {
+        matchMap.set(m.id, {
             itemId: m.id,
             score: m.score,
-            type: type === "lost" ? "found" : "lost",
-        })),
+            type: searchFor,
+            status: "pending",
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        }
+    });
+
+    const mergedMatches = Array.from(matchMap.values());
+
+    await docRef.update({
+        matches: mergedMatches,
         lastCheckedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
     return {
         success: true,
-        matches: filteredMatches,
+        newMatchesAdded:
+        mergedMatches.length - existingMatches.length,
+        matches: mergedMatches,
     };
 });
