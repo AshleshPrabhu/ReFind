@@ -1,4 +1,4 @@
-import { Package, Search, BarChart3, Menu, X, Upload, Check, Clock, Zap, X as XIcon, Sparkles, Edit3, LogOut, User } from 'lucide-react';
+import { Package, Search, BarChart3, Menu, X, Upload, Check, Clock, Zap, X as XIcon, Edit3, LogOut, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useAuth } from './context/AuthContext';
 import { toast } from 'sonner';
@@ -16,7 +16,7 @@ interface LostItem {
   location: string;
   raw_description: string;
   category: string;
-  status: 'lost' | 'found';
+  status: 'lost' | 'found' | 'resolved';
   dateAdded: string;
 }
 
@@ -28,7 +28,7 @@ interface FoundItem {
   raw_description: string;
   category: string; 
   dateFound: string;
-  status: 'returned' | 'not-returned';
+  status: 'returned' | 'not-returned' | 'resolved';
 }
 
 export interface MatchedItem {
@@ -493,28 +493,44 @@ export default function Dashboard() {
     }
   };
 
-  const toggleFoundItemStatus = (itemId: string) => {
-    setFoundItems(foundItems.map(item =>
-      item.id === itemId
-        ? { ...item, status: item.status === 'returned' ? 'not-returned' : 'returned' }
-        : item
-    ));
+  const toggleFoundItemStatus = async (itemId: string) => {
+    try {
+      const item = foundItems.find(i => i.id === itemId);
+      if (!item) return;
+
+      const newStatus = (item.status === 'returned' || item.status === 'resolved') ? 'not-returned' : 'returned';
+      
+      await updateDoc(doc(db, "found_items", itemId), {
+        status: newStatus
+      });
+
+      setFoundItems(foundItems.map(item =>
+        item.id === itemId
+          ? { ...item, status: newStatus }
+          : item
+      ));
+      
+      toast.success(`Item marked as ${newStatus === 'returned' ? 'returned' : 'not returned'}`);
+    } catch (error) {
+      console.error("Error updating item status:", error);
+      toast.error("Failed to update item status");
+    }
   };
 
   const handleLostCarouselPrev = () => {
-    setLostCarouselIndex(Math.max(0, lostCarouselIndex - 1));
+    setLostCarouselIndex(Math.max(0, lostCarouselIndex - 3));
   };
 
   const handleLostCarouselNext = () => {
-    setLostCarouselIndex(Math.min(lostItems.length - 1, lostCarouselIndex + 1));
+    setLostCarouselIndex(Math.min(lostItems.length - 1, lostCarouselIndex + 3));
   };
 
   const handleFoundCarouselPrev = () => {
-    setFoundCarouselIndex(Math.max(0, foundCarouselIndex - 1));
+    setFoundCarouselIndex(Math.max(0, foundCarouselIndex - 3));
   };
 
   const handleFoundCarouselNext = () => {
-    setFoundCarouselIndex(Math.min(foundItems.length - 1, foundCarouselIndex + 1));
+    setFoundCarouselIndex(Math.min(foundItems.length - 1, foundCarouselIndex + 3));
   };
 
   const markAsReturned = async (
@@ -555,9 +571,6 @@ export default function Dashboard() {
         <div className="w-full max-w-4xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 rounded-2xl border border-slate-700/50 shadow-2xl max-h-[90vh] overflow-y-auto">
           <div className="sticky top-0 bg-gradient-to-b from-slate-900 to-slate-800/50 border-b border-slate-700/50 p-8 flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className={`p-3 rounded-lg ${isLostItemMode ? 'bg-blue-500/20' : 'bg-green-500/20'}`}>
-                <Sparkles className={isLostItemMode ? 'w-6 h-6 text-blue-400' : 'w-6 h-6 text-green-400'} />
-              </div>
               <div>
                 <h2 className="text-2xl font-bold text-white">
                   {isLostItemMode ? 'Matching Found Items' : 'Matching Lost Items'}
@@ -899,11 +912,11 @@ export default function Dashboard() {
                         </div>
                         <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4 hover:bg-purple-500/15 transition-all">
                           <p className="text-purple-400 text-sm font-semibold mb-1">Resolved</p>
-                          <p className="text-2xl font-bold text-white">{lostItems.filter(i => i.status === 'found').length}</p>
+                          <p className="text-2xl font-bold text-white">{lostItems.filter(i => i.status === 'resolved').length}</p>
                         </div>
                         <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4 hover:bg-amber-500/15 transition-all">
                           <p className="text-amber-400 text-sm font-semibold mb-1">Active</p>
-                          <p className="text-2xl font-bold text-white">{foundItems.filter(i => i.status === 'not-returned').length}</p>
+                          <p className="text-2xl font-bold text-white">{foundItems.filter(i => i.status !== 'resolved' && i.status !== 'returned').length}</p>
                         </div>
                       </div>
 
@@ -1322,18 +1335,17 @@ export default function Dashboard() {
             )}
 
             {activeView === 'heatmap' && (
-              <div className="h-full flex flex-col">
-                <div className="flex-1">
+              <div className="h-[calc(100vh-80px)] flex flex-col">
+                <div className="flex-1 min-h-0">
                   <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 h-full border border-slate-700/50 p-8 backdrop-blur-sm flex flex-col">
                     <div className="flex items-center justify-between mb-6">
                       <div>
                         <h1 className="text-4xl font-bold text-white mb-2">Heatmap</h1>
                         <p className="text-gray-400">Location-based view of lost and found items around you</p>
                       </div>
-                      <Zap className="w-12 h-12 text-yellow-400" />
                     </div>
 
-                    <div className="flex-1 w-full rounded-lg border-2 border-slate-700 overflow-hidden">
+                    <div className="flex-1 w-full rounded-lg border-2 border-slate-700 overflow-hidden min-h-[400px]">
                       {heatmapPoints.length > 0 ? (
                         <HeatmapView points={heatmapPoints} />
                       ) : (
@@ -1343,24 +1355,6 @@ export default function Dashboard() {
                       )}
                     </div>
 
-
-                    <div className="grid grid-cols-3 gap-6 mt-6">
-                      <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-6">
-                        <p className="text-blue-400 text-sm font-semibold mb-2">Hot Zones</p>
-                        <p className="text-white text-2xl font-bold">12</p>
-                        <p className="text-gray-400 text-xs mt-2">Areas with high activity</p>
-                      </div>
-                      <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-6">
-                        <p className="text-red-400 text-sm font-semibold mb-2">Lost Items</p>
-                        <p className="text-white text-2xl font-bold">23</p>
-                        <p className="text-gray-400 text-xs mt-2">Nearby lost items</p>
-                      </div>
-                      <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-6">
-                        <p className="text-green-400 text-sm font-semibold mb-2">Found Items</p>
-                        <p className="text-white text-2xl font-bold">18</p>
-                        <p className="text-gray-400 text-xs mt-2">Nearby found items</p>
-                      </div>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -1378,95 +1372,94 @@ export default function Dashboard() {
                   ) : (
                     <div className="space-y-6">
                       <div className="relative">
-                        <div className="flex items-center justify-center gap-4">
-                          <button
-                            onClick={handleLostCarouselPrev}
-                            disabled={lostCarouselIndex === 0}
-                            className="p-3 rounded-full bg-blue-500/20 border border-blue-500/50 text-blue-400 hover:bg-blue-500/30 hover:border-blue-400 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-                          >
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                            </svg>
-                          </button>
-
-                          <div className="flex-1 overflow-hidden">
-                            <div
-                              className="flex gap-6 transition-transform duration-500 ease-out"
-                              style={{
-                                transform: `translateX(calc(-${lostCarouselIndex * 100}% - ${lostCarouselIndex * 24}px))`,
-                              }}
+                        {lostItems.length > 3 && (
+                          <div className="flex items-center justify-center gap-4 mb-6">
+                            <button
+                              onClick={handleLostCarouselPrev}
+                              disabled={lostCarouselIndex === 0}
+                              className="p-3 rounded-full bg-blue-500/20 border border-blue-500/50 text-blue-400 hover:bg-blue-500/30 hover:border-blue-400 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                             >
-                              {lostItems.map((item) => (
-                                <div
-                                  key={item.id}
-                                  onClick={() => setSelectedLostItem(item)}
-                                  className="flex-shrink-0 w-72 bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-2xl border border-slate-700/50 overflow-hidden hover:border-blue-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/10 cursor-pointer group"
-                                >
-                                  <div className="h-56 bg-slate-800 overflow-hidden relative">
-                                    <img
-                                      src={item.image}
-                                      alt={item.name}
-                                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                                    />
-                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300 flex items-center justify-center">
-                                      <span className="text-white font-semibold text-sm opacity-0 group-hover:opacity-100 transition-opacity">View Matches</span>
-                                    </div>
-                                  </div>
-                                  <div className="p-6">
-                                    <h3 className="text-lg font-bold text-white mb-2">{item.name}</h3>
-                                    <p className="text-sm text-gray-400 mb-4">{item.location}</p>
-                                    <div className="flex items-center justify-between pt-4 border-t border-slate-700/50">
-                                      <span className="text-xs text-gray-500">{item.dateAdded}</span>
-                                      <div
-                                        className={`flex items-center gap-2 px-3 py-1 rounded-full ${
-                                          item.status === 'found'
-                                            ? 'bg-green-500/20 text-green-400'
-                                            : 'bg-amber-500/20 text-amber-400'
-                                        }`}
-                                      >
-                                        {item.status === 'found' ? (
-                                          <>
-                                            <Check className="w-4 h-4" />
-                                            <span className="text-xs font-semibold">Found</span>
-                                          </>
-                                        ) : (
-                                          <>
-                                            <Clock className="w-4 h-4" />
-                                            <span className="text-xs font-semibold">Lost</span>
-                                          </>
-                                        )}
-                                      </div>
-                                    </div>
+                              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                              </svg>
+                            </button>
+                            <span className="text-gray-400 text-sm">
+                              {Math.floor(lostCarouselIndex / 3) + 1} of {Math.ceil(lostItems.length / 3)}
+                            </span>
+                            <button
+                              onClick={handleLostCarouselNext}
+                              disabled={lostCarouselIndex >= lostItems.length - 3}
+                              className="p-3 rounded-full bg-blue-500/20 border border-blue-500/50 text-blue-400 hover:bg-blue-500/30 hover:border-blue-400 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
+                              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
+                            </button>
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                          {lostItems.slice(lostCarouselIndex, lostCarouselIndex + 3).map((item) => (
+                            <div
+                              key={item.id}
+                              onClick={() => setSelectedLostItem(item)}
+                              className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-2xl border border-slate-700/50 overflow-hidden hover:border-blue-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/10 cursor-pointer group"
+                            >
+                              <div className="aspect-[4/3] bg-slate-800 overflow-hidden relative">
+                                <img
+                                  src={item.image}
+                                  alt={item.name}
+                                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                />
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300 flex items-center justify-center">
+                                  <span className="text-white font-semibold text-sm opacity-0 group-hover:opacity-100 transition-opacity">View Matches</span>
+                                </div>
+                              </div>
+                              <div className="p-6">
+                                <h3 className="text-lg font-bold text-white mb-2 truncate">{item.name}</h3>
+                                <p className="text-sm text-gray-400 mb-4 truncate">{item.location}</p>
+                                <div className="flex items-center justify-between pt-4 border-t border-slate-700/50">
+                                  <span className="text-xs text-gray-500">{item.dateAdded}</span>
+                                  <div
+                                    className={`flex items-center gap-2 px-3 py-1 rounded-full ${
+                                      item.status === 'resolved'
+                                        ? 'bg-green-500/20 text-green-400'
+                                        : 'bg-amber-500/20 text-amber-400'
+                                    }`}
+                                  >
+                                    {item.status === 'resolved' ? (
+                                      <>
+                                        <Check className="w-4 h-4" />
+                                        <span className="text-xs font-semibold">Returned</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Clock className="w-4 h-4" />
+                                        <span className="text-xs font-semibold">Lost</span>
+                                      </>
+                                    )}
                                   </div>
                                 </div>
-                              ))}
+                              </div>
                             </div>
-                          </div>
-
-                          <button
-                            onClick={handleLostCarouselNext}
-                            disabled={lostCarouselIndex === lostItems.length - 1}
-                            className="p-3 rounded-full bg-blue-500/20 border border-blue-500/50 text-blue-400 hover:bg-blue-500/30 hover:border-blue-400 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-                          >
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                          </button>
-                        </div>
-
-                        <div className="flex justify-center gap-2 mt-6">
-                          {lostItems.map((_, index) => (
-                            <button
-                              key={index}
-                              onClick={() => setLostCarouselIndex(index)}
-                              className={`h-2 rounded-full transition-all ${
-                                index === lostCarouselIndex
-                                  ? 'bg-blue-500 w-8'
-                                  : 'bg-slate-700 w-2 hover:bg-slate-600'
-                              }`}
-                            />
                           ))}
                         </div>
+
+                        {lostItems.length > 3 && (
+                          <div className="flex justify-center gap-2 mt-6">
+                            {Array.from({ length: Math.ceil(lostItems.length / 3) }, (_, index) => (
+                              <button
+                                key={index}
+                                onClick={() => setLostCarouselIndex(index * 3)}
+                                className={`h-2 rounded-full transition-all ${
+                                  Math.floor(lostCarouselIndex / 3) === index
+                                    ? 'bg-blue-500 w-8'
+                                    : 'bg-slate-700 w-2 hover:bg-slate-600'
+                                }`}
+                              />
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -1481,91 +1474,90 @@ export default function Dashboard() {
                   ) : (
                     <div className="space-y-6">
                       <div className="relative">
-                        <div className="flex items-center justify-center gap-4">
-                          <button
-                            onClick={handleFoundCarouselPrev}
-                            disabled={foundCarouselIndex === 0}
-                            className="p-3 rounded-full bg-green-500/20 border border-green-500/50 text-green-400 hover:bg-green-500/30 hover:border-green-400 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-                          >
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                            </svg>
-                          </button>
-
-                          <div className="flex-1 overflow-hidden">
-                            <div
-                              className="flex gap-6 transition-transform duration-500 ease-out"
-                              style={{
-                                transform: `translateX(calc(-${foundCarouselIndex * 100}% - ${foundCarouselIndex * 24}px))`,
-                              }}
-                            >
-                              {foundItems.map((item) => (
-                                <div
-                                  key={item.id}
-                                  onClick={() => setSelectedFoundItem(item)}
-                                  className="flex-shrink-0 w-72 bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-2xl border border-slate-700/50 overflow-hidden hover:border-green-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-green-500/10 cursor-pointer group"
-                                >
-                                  <div className="h-56 bg-slate-800 overflow-hidden relative">
-                                    <img
-                                      src={item.image}
-                                      alt={item.name}
-                                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                                    />
-                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300 flex items-center justify-center">
-                                      <span className="text-white font-semibold text-sm opacity-0 group-hover:opacity-100 transition-opacity">View Matches</span>
-                                    </div>
-                                  </div>
-                                  <div className="p-6">
-                                    <h3 className="text-lg font-bold text-white mb-2">{item.name}</h3>
-                                    <p className="text-sm text-gray-400 mb-4">{item.location}</p>
-                                    <div className="flex items-center justify-between pt-4 border-t border-slate-700/50 mb-4">
-                                      <span className="text-xs text-gray-500">{item.dateFound}</span>
-                                    </div>
-                                    <div className="space-y-2">
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          toggleFoundItemStatus(item.id);
-                                        }}
-                                        className={`w-full px-4 py-2 rounded-lg font-semibold transition-all duration-300 text-sm ${
-                                          item.status === 'returned'
-                                            ? 'bg-green-500/30 text-green-400 border border-green-500/50 hover:bg-green-500/40'
-                                            : 'bg-slate-700/50 text-gray-300 border border-slate-600 hover:border-green-500/50 hover:bg-slate-700'
-                                        }`}
-                                      >
-                                        {item.status === 'returned' ? '✓ Returned' : 'Not Returned'}
-                                      </button>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-
-                          <button
-                            onClick={handleFoundCarouselNext}
-                            disabled={foundCarouselIndex === foundItems.length - 1}
-                            className="p-3 rounded-full bg-green-500/20 border border-green-500/50 text-green-400 hover:bg-green-500/30 hover:border-green-400 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-                          >
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                          </button>
-                        </div>
-
-                        <div className="flex justify-center gap-2 mt-6">
-                          {foundItems.map((_, index) => (
+                        {foundItems.length > 3 && (
+                          <div className="flex items-center justify-center gap-4 mb-6">
                             <button
-                              key={index}
-                              onClick={() => setFoundCarouselIndex(index)}
-                              className={`h-2 rounded-full transition-all ${
-                                index === foundCarouselIndex
-                                  ? 'bg-green-500 w-8'
-                                  : 'bg-slate-700 w-2 hover:bg-slate-600'
-                              }`}
-                            />
+                              onClick={handleFoundCarouselPrev}
+                              disabled={foundCarouselIndex === 0}
+                              className="p-3 rounded-full bg-green-500/20 border border-green-500/50 text-green-400 hover:bg-green-500/30 hover:border-green-400 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
+                              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                              </svg>
+                            </button>
+                            <span className="text-gray-400 text-sm">
+                              {Math.floor(foundCarouselIndex / 3) + 1} of {Math.ceil(foundItems.length / 3)}
+                            </span>
+                            <button
+                              onClick={handleFoundCarouselNext}
+                              disabled={foundCarouselIndex >= foundItems.length - 3}
+                              className="p-3 rounded-full bg-green-500/20 border border-green-500/50 text-green-400 hover:bg-green-500/30 hover:border-green-400 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
+                              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
+                            </button>
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                          {foundItems.slice(foundCarouselIndex, foundCarouselIndex + 3).map((item) => (
+                            <div
+                              key={item.id}
+                              onClick={() => setSelectedFoundItem(item)}
+                              className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-2xl border border-slate-700/50 overflow-hidden hover:border-green-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-green-500/10 cursor-pointer group"
+                            >
+                              <div className="aspect-[4/3] bg-slate-800 overflow-hidden relative">
+                                <img
+                                  src={item.image}
+                                  alt={item.name}
+                                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                />
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300 flex items-center justify-center">
+                                  <span className="text-white font-semibold text-sm opacity-0 group-hover:opacity-100 transition-opacity">View Matches</span>
+                                </div>
+                              </div>
+                              <div className="p-6">
+                                <h3 className="text-lg font-bold text-white mb-2 truncate">{item.name}</h3>
+                                <p className="text-sm text-gray-400 mb-4 truncate">{item.location}</p>
+                                <div className="flex items-center justify-between pt-4 border-t border-slate-700/50 mb-4">
+                                  <span className="text-xs text-gray-500">{item.dateFound}</span>
+                                </div>
+                                <div className="space-y-2">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggleFoundItemStatus(item.id);
+                                    }}
+                                    className={`w-full px-4 py-2 rounded-lg font-semibold transition-all duration-300 text-sm ${
+                                      item.status === 'returned' || item.status === 'resolved'
+                                        ? 'bg-green-500/30 text-green-400 border border-green-500/50 hover:bg-green-500/40'
+                                        : 'bg-slate-700/50 text-gray-300 border border-slate-600 hover:border-green-500/50 hover:bg-slate-700'
+                                    }`}
+                                  >
+                                    {item.status === 'returned' || item.status === 'resolved' ? '✓ Returned' : 'Not Returned'}
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
                           ))}
                         </div>
+
+                        {foundItems.length > 3 && (
+                          <div className="flex justify-center gap-2 mt-6">
+                            {Array.from({ length: Math.ceil(foundItems.length / 3) }, (_, index) => (
+                              <button
+                                key={index}
+                                onClick={() => setFoundCarouselIndex(index * 3)}
+                                className={`h-2 rounded-full transition-all ${
+                                  Math.floor(foundCarouselIndex / 3) === index
+                                    ? 'bg-green-500 w-8'
+                                    : 'bg-slate-700 w-2 hover:bg-slate-600'
+                                }`}
+                              />
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}

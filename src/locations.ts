@@ -23,8 +23,8 @@ export const NITK_LOCATIONS: Record<
         lng: 74.79460,
     },
     "NITK Ground": {
-        lat: 13.00920,
-        lng: 74.79270,
+        lat: 13.01100,
+        lng: 74.79350,
     },
     "SAC": {
         lat: 13.00985,
