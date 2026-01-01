@@ -1,9 +1,10 @@
 import * as admin from "firebase-admin";
 import { onCall } from "firebase-functions/v2/https";
 import { findSimilarItems } from "./vertex";
+import { generateEmbedding } from "./vertexEmbeddings";
 
 const db = admin.firestore();
-const SIMILARITY_THRESHOLD = 0.75;
+const SIMILARITY_THRESHOLD = 0.70;
 
 async function writeMatchToItem(
     itemType: "lost" | "found",
@@ -25,7 +26,6 @@ async function writeMatchToItem(
     });
 }
 
-
 export const manualRecheck = onCall(async (request) => {
     if (!request.auth) throw new Error("Unauthorized");
 
@@ -41,11 +41,21 @@ export const manualRecheck = onCall(async (request) => {
     if (!sourceSnap.exists) throw new Error("Item not found");
 
     const sourceData = sourceSnap.data();
-    if (!sourceData?.embeddingId) throw new Error("Embedding missing");
+    if (!sourceData?.semanticDescription) throw new Error("Semantic description missing");
+
+    const embeddingInput = `
+    Item Type: ${type.charAt(0).toUpperCase() + type.slice(1)}
+    Name: ${sourceData.name}
+    Category: ${sourceData.category}
+    Description: ${sourceData.semanticDescription}
+    Location: ${sourceData.location ?? "Unknown"}
+    `;
+    
+    const embedding = await generateEmbedding(embeddingInput);
 
     const searchFor = type === "lost" ? "found" : "lost";
 
-    const aiMatches = await findSimilarItems([], searchFor);
+    const aiMatches = await findSimilarItems(embedding, searchFor);
     const filtered = aiMatches.filter(m => m.score >= SIMILARITY_THRESHOLD);
 
     let newMatchesAdded = 0;
@@ -88,4 +98,3 @@ export const manualRecheck = onCall(async (request) => {
 
     return { success: true, newMatchesAdded };
 });
-

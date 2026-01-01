@@ -1,44 +1,55 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { VertexAI } from "@google-cloud/vertexai";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_KEY!);
+const vertex = new VertexAI({
+  project: "ashlesh-refind",
+  location: "us-central1",
+});
 
-const visionModel = genAI.getGenerativeModel({
-    model: "gemini-1.5-flash",
+const visionModel = vertex.getGenerativeModel({
+  model: "gemini-2.0-flash-001",
 });
 
 export async function analyzeItemImage(
-    imageUrl: string
+  imageUrl: string
 ): Promise<string> {
-    const imageBase64 = await fetchImageAsBase64(imageUrl);
+  const imageBase64 = await fetchImageAsBase64(imageUrl);
 
-    const prompt = `
-    You are analyzing an image of a lost or found item.
+  const prompt = `
+  Describe this image of a lost or found item.
+  Focus on:
+  - object type
+  - color
+  - material
+  - brand or logo
+  - distinctive features
 
-    Describe the item focusing on:
-    - object type
-    - color
-    - material
-    - brand or logo (if visible)
-    - distinctive features
+  Return ONLY the description.
+  `;
 
-    Return ONLY a concise description.
-    `;
-
-    const result = await visionModel.generateContent([
-        { text: prompt },
-        {
+  const response = await visionModel.generateContent({
+    contents: [
+      {
+        role: "user",
+        parts: [
+          { text: prompt },
+          {
             inlineData: {
-                mimeType: "image/jpeg",
-                data: imageBase64,
+              mimeType: "image/jpeg",
+              data: imageBase64,
             },
-        },
-    ]);
+          },
+        ],
+      },
+    ],
+  });
 
-    return result.response.text().trim();
+  return (
+    response.response.candidates?.[0]?.content.parts?.[0]?.text?.trim() ?? ""
+  );
 }
 
-async function fetchImageAsBase64(imageUrl: string): Promise<string> {
-    const response = await fetch(imageUrl);
-    const buffer = Buffer.from(await response.arrayBuffer());
-    return buffer.toString("base64");
+async function fetchImageAsBase64(url: string): Promise<string> {
+  const res = await fetch(url);
+  const buffer = Buffer.from(await res.arrayBuffer());
+  return buffer.toString("base64");
 }

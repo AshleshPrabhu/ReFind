@@ -1,18 +1,14 @@
 import * as admin from "firebase-admin";
+admin.initializeApp();
+
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { generateText} from "./vertexGemini";
+import { generateEmbedding } from "./vertexEmbeddings";
 import { upsertEmbedding } from "./vertex";
 import { runSimilarityCheck } from "./matcher";
 import { analyzeItemImage } from "./imageAI";
+export { manualRecheck } from "./manualRecheck";
 
-admin.initializeApp();
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_KEY!);
-
-const textModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-const embeddingModel = genAI.getGenerativeModel({
-    model: "text-embedding-004",
-});
 
 async function generateSemanticDescription(
     name: string,
@@ -39,13 +35,8 @@ async function generateSemanticDescription(
     Return ONLY the summary text.
     `;
 
-    const result = await textModel.generateContent(prompt);
-    return result.response.text().trim();
-}
-
-async function generateEmbedding(text: string): Promise<number[]> {
-    const result = await embeddingModel.embedContent(text);
-    return result.embedding.values;
+    const text = await generateText(prompt);
+    return text.trim();
 }
 
 async function storeEmbedding(
@@ -58,8 +49,11 @@ async function storeEmbedding(
     return vectorId;
 }
 
+
 export const onLostItemCreate = onDocumentCreated(
-    "lost_items/{itemId}",
+    {
+        document: "lost_items/{itemId}",
+    },
     async (event) => {
         const snap = event.data;
         if (!snap) return;
@@ -69,24 +63,27 @@ export const onLostItemCreate = onDocumentCreated(
 
         let imageDescription = "";
 
-        if (data.imageUrl) {
-            imageDescription = await analyzeItemImage(data.imageUrl);
+        console.log("Lost Item Data:", data);
+        if (data.image) {
+            imageDescription = await analyzeItemImage(data.image);
         }
+        console.log("Image Description:", imageDescription);
 
         const combinedDescription = `
-        User Description:
-        ${data.rawDescription}
+    User Description:
+    ${data.rawDescription}
 
-        Image Analysis:
-        ${imageDescription}
-        `;
+    Image Analysis:
+    ${imageDescription}
+    `;
 
         const semanticDescription = await generateSemanticDescription(
             data.name,
             combinedDescription,
             data.category,
-            data.location 
+            data.location
         );
+        console.log("Generated Semantic Description:", semanticDescription);
 
         const embeddingInput = `
     Item Type: Lost
@@ -97,6 +94,7 @@ export const onLostItemCreate = onDocumentCreated(
     `;
 
         const embedding = await generateEmbedding(embeddingInput);
+        console.log("Generated Embedding:", embedding);
 
         const embeddingId = await storeEmbedding(
             event.params.itemId,
@@ -109,16 +107,14 @@ export const onLostItemCreate = onDocumentCreated(
             embeddingId,
         });
 
-        await runSimilarityCheck(
-            event.params.itemId,
-            "lost",
-            embedding
-        );
+        await runSimilarityCheck(event.params.itemId, "lost", embedding);
     }
 );
 
 export const onFoundItemCreate = onDocumentCreated(
-    "found_items/{itemId}",
+    {
+        document: "found_items/{itemId}",
+    },
     async (event) => {
         const snap = event.data;
         if (!snap) return;
@@ -127,18 +123,18 @@ export const onFoundItemCreate = onDocumentCreated(
         if (!data || data.embeddingId) return;
 
         let imageDescription = "";
-
-        if (data.imageUrl) {
-            imageDescription = await analyzeItemImage(data.imageUrl);
+        console.log("Found Item Data:", data);
+        if (data.image) {
+            imageDescription = await analyzeItemImage(data.image);
         }
 
         const combinedDescription = `
-        User Description:
-        ${data.rawDescription}
+    User Description:
+    ${data.rawDescription}
 
-        Image Analysis:
-        ${imageDescription}
-        `;
+    Image Analysis:
+    ${imageDescription}
+    `;
 
         const semanticDescription = await generateSemanticDescription(
             data.name,
@@ -168,12 +164,6 @@ export const onFoundItemCreate = onDocumentCreated(
             embeddingId,
         });
 
-        await runSimilarityCheck(
-            event.params.itemId,
-            "found",
-            embedding
-        );
+        await runSimilarityCheck(event.params.itemId, "found", embedding);
     }
 );
-
-export { manualRecheck } from "./manualRecheck";

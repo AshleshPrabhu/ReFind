@@ -3,7 +3,7 @@ import { findSimilarItems } from "./vertex";
 
 const db = admin.firestore();
 
-const SIMILARITY_THRESHOLD = 0.75;
+const SIMILARITY_THRESHOLD = 0.70;
 
 async function writeMatchToItem(
     itemType: "lost" | "found",
@@ -17,12 +17,15 @@ async function writeMatchToItem(
     const existingMatches = snap.data()?.matches || [];
 
     if (existingMatches.some((m: any) => m.itemId === match.itemId)) {
+        console.log(" Match already exists, skipping");
         return;
     }
 
     await ref.update({
         matches: [...existingMatches, match],
     });
+    
+    console.log("Match written to", itemType, "item:", itemId);
 }
 
 export async function runSimilarityCheck(
@@ -30,12 +33,21 @@ export async function runSimilarityCheck(
     itemType: "lost" | "found",
     embedding: number[]
 ) {
+    console.log("Running similarity check for:", itemType, itemId);
+    
     const searchFor = itemType === "lost" ? "found" : "lost";
 
     const aiMatches = await findSimilarItems(embedding, searchFor);
+    console.log("AI matches found:", aiMatches.length);
+    console.log("AI matches:", JSON.stringify(aiMatches, null, 2));
+    
     const filtered = aiMatches.filter(m => m.score >= SIMILARITY_THRESHOLD);
+    console.log("Filtered matches (score >=", SIMILARITY_THRESHOLD, "):", filtered.length);
 
-    if (filtered.length === 0) return [];
+    if (filtered.length === 0) {
+        console.log("No matches above threshold");
+        return [];
+    }
 
     const sourceRef = db.collection(`${itemType}_items`).doc(itemId);
     const sourceSnap = await sourceRef.get();
@@ -44,13 +56,21 @@ export async function runSimilarityCheck(
     const sourceUserId = sourceSnap.data()?.userId;
     if (!sourceUserId) return [];
 
+    const now = new Date();
+
     for (const m of filtered) {
         const targetRef = db.collection(`${searchFor}_items`).doc(m.id);
         const targetSnap = await targetRef.get();
-        if (!targetSnap.exists) continue;
+        if (!targetSnap.exists) {
+            console.log("Target item not found:", m.id);
+            continue;
+        }
 
         const targetUserId = targetSnap.data()?.userId;
-        if (!targetUserId) continue;
+        if (!targetUserId) {
+            console.log("Target item has no userId:", m.id);
+            continue;
+        }
 
         const sourceMatch = {
             itemId: m.id,
@@ -58,7 +78,7 @@ export async function runSimilarityCheck(
             score: m.score,
             type: searchFor,
             status: "pending",
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            createdAt: now, 
         };
 
         const targetMatch = {
@@ -67,12 +87,13 @@ export async function runSimilarityCheck(
             score: m.score,
             type: itemType,
             status: "pending",
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            createdAt: now, 
         };
 
         await writeMatchToItem(itemType, itemId, sourceMatch);
         await writeMatchToItem(searchFor, m.id, targetMatch);
     }
 
+    console.log("Similarity check complete, found", filtered.length, "matches");
     return filtered;
 }
