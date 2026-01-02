@@ -257,10 +257,12 @@ export default function Dashboard() {
           id: foundSnap.id,
           image: data.image,
           name: data.name,
-          raw_description: data.rawDescription,
+          rawDescription: data.rawDescription,
           location: data.location,
           category: data.category,
-          date: data.createdAt?.toDate().toISOString().split("T")[0],
+          matchedType: "found" as const,
+          matchStatus: "pending" as const,
+          reportedDate: data.createdAt?.toDate().toISOString().split("T")[0] || '',
           matchPercentage: Math.round(m.score * 100),
           ownerUserId: m.userId,
           ownerUserEmail: user?.email || '',
@@ -292,10 +294,12 @@ export default function Dashboard() {
           id: lostSnap.id,
           image: data.image,
           name: data.name,
-          raw_description: data.rawDescription,
+          rawDescription: data.rawDescription,
           location: data.location,
           category: data.category,
-          date: data.createdAt?.toDate().toISOString().split("T")[0],
+          matchedType: "lost" as const,
+          matchStatus: "pending" as const,
+          reportedDate: data.createdAt?.toDate().toISOString().split("T")[0] || '',
           matchPercentage: Math.round(m.score * 100),
           ownerUserId: m.userId,
           ownerUserEmail: user?.email || '',
@@ -362,6 +366,7 @@ export default function Dashboard() {
     return snap.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
+      dateAdded: doc.data().createdAt?.toDate().toISOString().split("T")[0] || '',
     }));
   };
 
@@ -377,6 +382,7 @@ export default function Dashboard() {
     return snap.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
+      dateFound: doc.data().createdAt?.toDate().toISOString().split("T")[0] || '',
     }));
   };
 
@@ -646,14 +652,15 @@ export default function Dashboard() {
                                 </p>
                               )}
 
+                              {item.ownerUserPhone && (
+                                <p className="text-xs text-green-400 mt-1">
+                                  Phone: {item.ownerUserPhone}
+                                </p>
+                              )}
+
                               {item.ownerUserEmail && item.matchStatus === "confirmed" && (
                                 <p className="text-xs text-blue-400 mt-1">
                                   Contact: {item.ownerUserEmail}
-                                </p>
-                              )}
-                              {item.ownerUserPhone && item.matchStatus === "confirmed" && (
-                                <p className="text-xs text-green-400 mt-1">
-                                  Phone: {item.ownerUserPhone}
                                 </p>
                               )}
                             </div>
