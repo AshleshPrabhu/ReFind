@@ -1,13 +1,13 @@
-import { Package, Search, BarChart3, Menu, X, Upload, Check, Clock, Zap, X as XIcon, Edit3, LogOut, User } from 'lucide-react';
+import { Package, Search, BarChart3, Menu, X, Upload, Check, Clock, Zap, X as XIcon, Edit3, LogOut, User, MapPin } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useAuth } from './context/AuthContext';
 import { toast } from 'sonner';
 import { uploadToCloudinary } from './cloudinary';
 import { addDoc, collection, getDocs, orderBy, query, serverTimestamp, where, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { auth, db } from './firebase';
-import { signOut } from 'firebase/auth';
-import { NITK_LOCATIONS } from './locations';
+import { signOut } from 'firebase/auth'
 import HeatmapView from './HeatMap';
+import MapLocationPicker from './MapLocationPicker';
 
 interface LostItem {
   id: string;
@@ -68,6 +68,8 @@ export default function Dashboard() {
     raw_description: '',
     category: '',
     location: '',
+    locationDescription: '',
+    coordinates: null as { lat: number; lng: number } | null,
   });
   
   const [foundFormData, setFoundFormData] = useState({
@@ -76,6 +78,8 @@ export default function Dashboard() {
     raw_description: '',
     category: '',
     location: '',
+    locationDescription: '',
+    coordinates: null as { lat: number; lng: number } | null,
   });
 
   const [lostItems, setLostItems] = useState<LostItem[]>([]);
@@ -317,18 +321,44 @@ export default function Dashboard() {
   async function getHeatmapData() {
     const snapshot = await getDocs(collection(db, "lost_items"));
 
-    const counts: Record<string, number> = {};
+    const counts: Record<string, { location: { lat: number; lng: number }; count: number }> = {};
 
     snapshot.docs.forEach((doc) => {
-      const location = doc.data().location;
-      if (!location || !NITK_LOCATIONS[location]) return;
-      counts[location] = (counts[location] || 0) + 1;
+      const data = doc.data();
+      const coordinates = data.coordinates;
+      
+      if (coordinates && coordinates.lat && coordinates.lng) {
+        const key = `${coordinates.lat.toFixed(4)},${coordinates.lng.toFixed(4)}`;
+        if (counts[key]) {
+          counts[key].count += 1;
+        } else {
+          counts[key] = {
+            location: { lat: coordinates.lat, lng: coordinates.lng },
+            count: 1
+          };
+        }
+      }
     });
 
-    return Object.entries(counts).map(([location, count]) => ({
-      location: NITK_LOCATIONS[location],
+    const result = Object.values(counts).map(({ location, count }) => ({
+      location,
       weight: count,
     }));
+
+    console.log('Heatmap data from Dashboard:', result);
+    
+    if (result.length === 0) {
+      console.log('No coordinate data found, adding test data');
+      return [
+        { location: { lat: 13.01028, lng: 74.79415 }, weight: 3 }, 
+        { location: { lat: 13.01045, lng: 74.79455 }, weight: 2 }, 
+        { location: { lat: 13.01085, lng: 74.79460 }, weight: 5 }, 
+        { location: { lat: 13.01005, lng: 74.79340 }, weight: 1 }, 
+        { location: { lat: 13.00985, lng: 74.79395 }, weight: 4 }, 
+      ];
+    }
+    
+    return result;
   }
 
   const [lostCarouselIndex, setLostCarouselIndex] = useState(0);
@@ -352,6 +382,24 @@ export default function Dashboard() {
     if (e.target.files?.[0]) {
       setFoundFormData({ ...foundFormData, image: e.target.files[0] });
     }
+  };
+
+  const handleLostLocationSelect = (location: { lat: number; lng: number; name: string; description?: string }) => {
+    setLostFormData({ 
+      ...lostFormData, 
+      location: location.name,
+      locationDescription: location.description || '',
+      coordinates: { lat: location.lat, lng: location.lng }
+    });
+  };
+
+  const handleFoundLocationSelect = (location: { lat: number; lng: number; name: string; description?: string }) => {
+    setFoundFormData({ 
+      ...foundFormData, 
+      location: location.name,
+      locationDescription: location.description || '',
+      coordinates: { lat: location.lat, lng: location.lng }
+    });
   };
 
   const fetchUserLostItems = async (userId: string) => {
@@ -398,8 +446,12 @@ export default function Dashboard() {
       return;
     }
 
-    if (!lostFormData.image) {
-      toast.error("Please upload an image");
+    if (!lostFormData.coordinates) {
+      toast.error("Please select a location on the map");
+      return;
+    }
+    if(!lostFormData.image){
+      toast.error("Please upload an image of the lost item");
       return;
     }
 
@@ -417,11 +469,12 @@ export default function Dashboard() {
         semanticDescription: "",
         category: lostFormData.category,
         image: image,
-        // location: {
-        //   lat: lostFormData.location.lat,
-        //   lng: lostFormData.location.lng,
-        // },
         location: lostFormData.location,
+        locationDescription: lostFormData.locationDescription,
+        coordinates: {
+          lat: lostFormData.coordinates.lat,
+          lng: lostFormData.coordinates.lng,
+        },
         status: "active",
         embeddingId: null,
         createdAt: serverTimestamp(),
@@ -433,8 +486,10 @@ export default function Dashboard() {
         image: null,
         name: "",
         location: "",
+        locationDescription: "",
         category: "",
         raw_description: "",
+        coordinates: null,
       });
 
       setActiveView("dashboard");
@@ -456,8 +511,12 @@ export default function Dashboard() {
       return;
     }
 
-    if (!foundFormData.image) {
-      toast.error("Please upload an image");
+    if (!foundFormData.coordinates) {
+      toast.error("Please select a location on the map");
+      return;
+    }
+    if(!foundFormData.image){
+      toast.error("Please upload an image of the found item");
       return;
     }
 
@@ -472,11 +531,12 @@ export default function Dashboard() {
         semanticDescription: "", 
         category: foundFormData.category,
         image: image,
-        // location: {
-        //   lat: foundFormData.location.lat,
-        //   lng: foundFormData.location.lng,
-        // },
         location: foundFormData.location,
+        locationDescription: foundFormData.locationDescription,
+        coordinates: {
+          lat: foundFormData.coordinates.lat,
+          lng: foundFormData.coordinates.lng,
+        },
         status: "active", // active | returned | matched
         embeddingId: null,
         createdAt: serverTimestamp(),
@@ -488,8 +548,10 @@ export default function Dashboard() {
         image: null,
         name: "",
         location: "",
+        locationDescription: "",
         category: "",
         raw_description: "",
+        coordinates: null,
       });
 
       setActiveView("dashboard");
@@ -1202,22 +1264,16 @@ export default function Dashboard() {
 
                             <div className="col-span-2">
                               <label className="block text-sm font-semibold text-slate-300 mb-2">Where did you lose it? *</label>
-                              <select
-                                required
-                                value={lostFormData.location}
-                                onChange={(e) => setLostFormData({ ...lostFormData, location: e.target.value })}
-                                className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-all"
-                              >
-                                <option value="" disabled className="bg-slate-800">Select a location</option>
-                                {Object.keys(NITK_LOCATIONS).map((locationKey) => (
-                                  <option key={locationKey} value={locationKey} className="bg-slate-800">
-                                    {locationKey}
-                                  </option>
-                                ))}
-                                <option value="Not sure" className="bg-slate-800">
-                                  Not sure
-                                </option>
-                              </select>
+                              <MapLocationPicker
+                                onLocationSelect={handleLostLocationSelect}
+                                selectedLocation={lostFormData.coordinates ? {
+                                  lat: lostFormData.coordinates.lat,
+                                  lng: lostFormData.coordinates.lng,
+                                  name: lostFormData.location,
+                                  description: lostFormData.locationDescription
+                                } : null}
+                                className="w-full"
+                              />
                             </div>
                           </div>
 
@@ -1225,7 +1281,7 @@ export default function Dashboard() {
                             <div className="space-y-3">
                               <button
                                 type="submit"
-                                disabled={!lostFormData.image || !lostFormData.name || !lostFormData.category || !lostFormData.raw_description || !lostFormData.location}
+                                disabled={!lostFormData.image || !lostFormData.name || !lostFormData.category || !lostFormData.raw_description || !lostFormData.coordinates}
                                 className="w-full px-6 py-4 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 disabled:from-slate-700 disabled:to-slate-700 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center gap-3"
                               >
                                 <Search className="w-5 h-5" />
@@ -1251,14 +1307,14 @@ export default function Dashboard() {
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-xs font-medium text-slate-400">COMPLETION</span>
                             <span className="text-xs text-slate-400">
-                              {Math.round(([lostFormData.image, lostFormData.name, lostFormData.category, lostFormData.raw_description, lostFormData.location].filter(Boolean).length / 5) * 100)}%
+                              {Math.round(([lostFormData.image, lostFormData.name, lostFormData.category, lostFormData.raw_description, lostFormData.coordinates].filter(Boolean).length / 5) * 100)}%
                             </span>
                           </div>
                           <div className="w-full bg-slate-800 rounded-full h-1.5">
                             <div 
                               className="bg-gradient-to-r from-blue-400 to-blue-500 h-1.5 rounded-full transition-all duration-500"
                               style={{
-                                width: `${([lostFormData.image, lostFormData.name, lostFormData.category, lostFormData.raw_description, lostFormData.location].filter(Boolean).length / 5) * 100}%`
+                                width: `${([lostFormData.image, lostFormData.name, lostFormData.category, lostFormData.raw_description, lostFormData.coordinates].filter(Boolean).length / 5) * 100}%`
                               }}
                             ></div>
                           </div>
@@ -1294,7 +1350,7 @@ export default function Dashboard() {
                             <div className="p-3 bg-slate-800/30 rounded-lg border border-slate-700/50 relative">
                               <p className="text-xs text-slate-500 font-medium mb-1">LOCATION</p>
                               <p className="text-white font-semibold">{lostFormData.location || 'Select location...'}</p>
-                              {lostFormData.location && <div className="absolute top-2 right-2 w-2 h-2 bg-green-400 rounded-full"></div>}
+                              {lostFormData.coordinates && <div className="absolute top-2 right-2 w-2 h-2 bg-green-400 rounded-full"></div>}
                             </div>
                             <div className="p-3 bg-slate-800/30 rounded-lg border border-slate-700/50 relative">
                               <p className="text-xs text-slate-500 font-medium mb-1">DESCRIPTION</p>
@@ -1408,22 +1464,16 @@ export default function Dashboard() {
 
                             <div className="col-span-2">
                               <label className="block text-sm font-semibold text-slate-300 mb-2">Where did you find it? *</label>
-                              <select
-                                required
-                                value={foundFormData.location}
-                                onChange={(e) => setFoundFormData({ ...foundFormData, location: e.target.value })}
-                                className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-green-500/50 focus:ring-2 focus:ring-green-500/20 transition-all"
-                              >
-                                <option value="" disabled className="bg-slate-800">Select a location</option>
-                                {Object.keys(NITK_LOCATIONS).map((locationKey) => (
-                                  <option key={locationKey} value={locationKey} className="bg-slate-800">
-                                    {locationKey}
-                                  </option>
-                                ))}
-                                <option value="Not sure" className="bg-slate-800">
-                                  Not sure
-                                </option>
-                              </select>
+                              <MapLocationPicker
+                                onLocationSelect={handleFoundLocationSelect}
+                                selectedLocation={foundFormData.coordinates ? {
+                                  lat: foundFormData.coordinates.lat,
+                                  lng: foundFormData.coordinates.lng,
+                                  name: foundFormData.location,
+                                  description: foundFormData.locationDescription
+                                } : null}
+                                className="w-full"
+                              />
                             </div>
                           </div>
 
@@ -1431,7 +1481,7 @@ export default function Dashboard() {
                             <div className="space-y-3">
                               <button
                                 type="submit"
-                                disabled={!foundFormData.image || !foundFormData.name || !foundFormData.category || !foundFormData.raw_description || !foundFormData.location}
+                                disabled={!foundFormData.image || !foundFormData.name || !foundFormData.category || !foundFormData.raw_description || !foundFormData.coordinates}
                                 className="w-full px-6 py-4 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 disabled:from-slate-700 disabled:to-slate-700 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center gap-3"
                               >
                                 <Package className="w-5 h-5" />
@@ -1457,14 +1507,14 @@ export default function Dashboard() {
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-xs font-medium text-slate-400">COMPLETION</span>
                             <span className="text-xs text-slate-400">
-                              {Math.round(([foundFormData.image, foundFormData.name, foundFormData.category, foundFormData.raw_description, foundFormData.location].filter(Boolean).length / 5) * 100)}%
+                              {Math.round(([foundFormData.image, foundFormData.name, foundFormData.category, foundFormData.raw_description, foundFormData.coordinates].filter(Boolean).length / 5) * 100)}%
                             </span>
                           </div>
                           <div className="w-full bg-slate-800 rounded-full h-1.5">
                             <div 
                               className="bg-gradient-to-r from-green-400 to-green-500 h-1.5 rounded-full transition-all duration-500"
                               style={{
-                                width: `${([foundFormData.image, foundFormData.name, foundFormData.category, foundFormData.raw_description, foundFormData.location].filter(Boolean).length / 5) * 100}%`
+                                width: `${([foundFormData.image, foundFormData.name, foundFormData.category, foundFormData.raw_description, foundFormData.coordinates].filter(Boolean).length / 5) * 100}%`
                               }}
                             ></div>
                           </div>
@@ -1500,7 +1550,7 @@ export default function Dashboard() {
                             <div className="p-3 bg-slate-800/30 rounded-lg border border-slate-700/50 relative">
                               <p className="text-xs text-slate-500 font-medium mb-1">LOCATION</p>
                               <p className="text-white font-semibold">{foundFormData.location || 'Select location...'}</p>
-                              {foundFormData.location && <div className="absolute top-2 right-2 w-2 h-2 bg-green-400 rounded-full"></div>}
+                              {foundFormData.coordinates && <div className="absolute top-2 right-2 w-2 h-2 bg-green-400 rounded-full"></div>}
                             </div>
                             <div className="p-3 bg-slate-800/30 rounded-lg border border-slate-700/50 relative">
                               <p className="text-xs text-slate-500 font-medium mb-1">DESCRIPTION</p>

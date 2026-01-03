@@ -13,7 +13,6 @@ interface HeatmapPoint {
 }
 
 interface LocationData {
-  location: string;
   lat: number;
   lng: number;
   count: number;
@@ -22,16 +21,6 @@ interface LocationData {
 interface Props {
   points: HeatmapPoint[];
 }
-
-const NITK_LOCATIONS: Record<string, { lat: number; lng: number }> = {
-  "LHC A": { lat: 13.01028, lng: 74.79415 },
-  "LHC C": { lat: 13.01045, lng: 74.79455 },
-  "LHC D": { lat: 13.01062, lng: 74.79480 },
-  "CS DEPT": { lat: 13.01005, lng: 74.79340 },
-  "Central Library": { lat: 13.01085, lng: 74.79460 },
-  "NITK Ground": { lat: 13.01100, lng: 74.79350 },
-  "SAC": { lat: 13.00985, lng: 74.79395 },
-};
 
 export default function EnhancedHeatmap({ points }: Props) {
   const mapRef = useRef<HTMLDivElement>(null);
@@ -47,8 +36,12 @@ export default function EnhancedHeatmap({ points }: Props) {
     async function init() {
       if (!mapRef.current) return;
 
+      console.log('Initializing map with points:', points);
+
       await loadGoogleMaps();
       if (!mounted) return;
+
+      console.log('Google Maps loaded, visualization available:', !!window.google?.maps?.visualization);
 
       const map = new window.google.maps.Map(mapRef.current, {
         center: { lat: 13.0105, lng: 74.794 },
@@ -104,48 +97,56 @@ export default function EnhancedHeatmap({ points }: Props) {
         heatmapLayer.current.setMap(null);
       }
 
-      if (window.google.maps.visualization && (viewMode === 'heatmap' || viewMode === 'both')) {
-        const heatmapData = points.map(p => ({
-          location: new window.google.maps.LatLng(p.location.lat, p.location.lng),
-          weight: p.weight,
-        }));
+      if (window.google?.maps?.visualization && (viewMode === 'heatmap' || viewMode === 'both')) {
+        console.log('Creating heatmap with points:', points);
+        
+        const heatmapData = points.map(p => {
+          const latLng = new window.google.maps.LatLng(p.location.lat, p.location.lng);
+          return { location: latLng, weight: p.weight };
+        });
 
+        console.log('Heatmap data:', heatmapData);
+
+        const maxWeight = points.length > 0 ? Math.max(...points.map(p => p.weight)) : 1;
+        
         heatmapLayer.current = new window.google.maps.visualization.HeatmapLayer({
           data: heatmapData,
           map: map,
-          radius: 40,
-          opacity: 0.8,
+          radius: 50,
+          opacity: 0.9,
           dissipating: true,
-          maxIntensity: Math.max(...points.map(p => p.weight)),
+          maxIntensity: maxWeight,
           gradient: [
             "rgba(0, 0, 0, 0)",
-            "rgba(0, 150, 255, 0.7)",
-            "rgba(0, 200, 255, 0.8)",
-            "rgba(50, 255, 200, 0.85)",
-            "rgba(100, 255, 150, 0.9)",
-            "rgba(200, 255, 50, 0.95)",
-            "rgba(255, 200, 0, 1)",
+            "rgba(0, 150, 255, 0.6)",
+            "rgba(0, 200, 255, 0.7)",
+            "rgba(50, 255, 200, 0.8)",
+            "rgba(100, 255, 150, 0.85)",
+            "rgba(200, 255, 50, 0.9)",
+            "rgba(255, 200, 0, 0.95)",
             "rgba(255, 150, 0, 1)",
             "rgba(255, 100, 0, 1)",
             "rgba(255, 50, 0, 1)",
             "rgba(255, 0, 0, 1)",
           ],
         });
+
+        console.log('Heatmap layer created:', heatmapLayer.current);
+      } else {
+        console.warn('Google Maps visualization library not loaded or viewMode not set to heatmap');
       }
 
       if (viewMode === 'markers' || viewMode === 'both') {
         const locationCounts = new Map<string, LocationData>();
         
         points.forEach(p => {
-          const key = `${p.location.lat.toFixed(6)},${p.location.lng.toFixed(6)}`;
+          const key = `${p.location.lat.toFixed(4)},${p.location.lng.toFixed(4)}`;
           const existing = locationCounts.get(key);
           
           if (existing) {
             existing.count += p.weight;
           } else {
-            const locationName = findLocationName(p.location.lat, p.location.lng);
             locationCounts.set(key, {
-              location: locationName,
               lat: p.location.lat,
               lng: p.location.lng,
               count: p.weight,
@@ -168,7 +169,7 @@ export default function EnhancedHeatmap({ points }: Props) {
               strokeColor: "#ffffff",
               strokeWeight: 3,
             },
-            title: `${data.location}: ${data.count} item${data.count !== 1 ? 's' : ''}`,
+            title: `${data.count} lost item${data.count !== 1 ? 's' : ''}`,
             animation: window.google.maps.Animation.DROP,
           });
 
@@ -181,30 +182,31 @@ export default function EnhancedHeatmap({ points }: Props) {
                 border-radius: 12px;
                 font-family: system-ui, -apple-system, sans-serif;
                 border: 2px solid ${color};
-                min-width: 180px;
+                min-width: 160px;
                 box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+                text-align: center;
               ">
                 <div style="
                   font-weight: 700; 
-                  font-size: 16px; 
-                  margin-bottom: 8px;
+                  font-size: 18px; 
                   color: ${color};
                   text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+                  margin-bottom: 4px;
                 ">
-                  ${data.location}
+                  ${data.count}
                 </div>
                 <div style="
-                  display: flex;
-                  align-items: center;
-                  gap: 8px;
                   color: #e2e8f0;
                   font-size: 14px;
-                  padding: 8px;
-                  background: rgba(255,255,255,0.05);
-                  border-radius: 8px;
-                  border-left: 4px solid ${color};
                 ">
-                  <span><strong>${data.count}</strong> lost item${data.count !== 1 ? 's' : ''}</span>
+                  lost item${data.count !== 1 ? 's' : ''}
+                </div>
+                <div style="
+                  color: #94a3b8;
+                  font-size: 11px;
+                  margin-top: 8px;
+                ">
+                  ${data.lat.toFixed(4)}, ${data.lng.toFixed(4)}
                 </div>
               </div>
             `,
@@ -251,18 +253,7 @@ export default function EnhancedHeatmap({ points }: Props) {
     return "#06b6d4";
   }
 
-  function findLocationName(lat: number, lng: number): string {
-    const threshold = 0.0005;
-    for (const [name, coords] of Object.entries(NITK_LOCATIONS)) {
-      const distance = Math.sqrt(
-        Math.pow(lat - coords.lat, 2) + Math.pow(lng - coords.lng, 2)
-      );
-      if (distance < threshold) {
-        return name;
-      }
-    }
-    return "Unknown Location";
-  }
+
 
   return (
     <div className="relative w-full h-full min-h-[500px] rounded-xl overflow-hidden shadow-2xl">
