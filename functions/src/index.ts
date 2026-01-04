@@ -2,37 +2,45 @@ import * as admin from "firebase-admin";
 admin.initializeApp();
 
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
-import { generateText} from "./vertexGemini";
+import { generateText } from "./vertexGemini";
 import { generateEmbedding } from "./vertexEmbeddings";
 import { upsertEmbedding } from "./vertex";
 import { runSimilarityCheck } from "./matcher";
 import { analyzeItemImage } from "./imageAI";
 export { manualRecheck } from "./manualRecheck";
 
-
 async function generateSemanticDescription(
     name: string,
     rawDescription: string,
+    imageDescription: string,
     category: string,
-    location?: string
+    location?: string,
+    locationDescription?: string
 ): Promise<string> {
     const prompt = `
-    Convert the following lost/found item description into a concise semantic summary.
-
-    Focus on:
-    - color
-    - material
-    - size
-    - brand (if any)
-    - distinguishing features
-    - likely usage context
-
-    Item Name: ${name}
-    Category: ${category}
-    Location: ${location ?? "Unknown"}
-    Raw Description: ${rawDescription}
-
-    Return ONLY the summary text.
+    Create a detailed semantic summary for a lost/found item matching system.
+    
+    IMPORTANT: The image analysis is the MOST RELIABLE source. Prioritize it heavily.
+    
+    Given information:
+    - Item Name: ${name}
+    - Category: ${category}
+    - Location: ${location ?? "Unknown"}
+    - Location Details: ${locationDescription ?? "None"}
+    - User Description: ${rawDescription}
+    - AI Image Analysis: ${imageDescription}
+    
+    Create a comprehensive description that:
+    1. Starts with the EXACT object type from the image analysis
+    2. Includes all visual details from the image (brand, color, material, features)
+    3. Adds relevant context from user description
+    4. Mentions distinctive identifying features
+    5. Notes the location for context
+    
+    Format: [Object Type] - [Brand/Model] - [Color] - [Material] - [Key Features] - [Location Context]
+    
+    Be EXTREMELY specific about object type. Never confuse categories.
+    Return ONLY the summary, no explanation.
     `;
 
     const text = await generateText(prompt);
@@ -49,7 +57,6 @@ async function storeEmbedding(
     return vectorId;
 }
 
-
 export const onLostItemCreate = onDocumentCreated(
     {
         document: "lost_items/{itemId}",
@@ -61,40 +68,53 @@ export const onLostItemCreate = onDocumentCreated(
         const data = snap.data();
         if (!data || data.embeddingId) return;
 
+        console.log("Processing Lost Item:", event.params.itemId);
+
         let imageDescription = "";
-
-        console.log("Lost Item Data:", data);
         if (data.image) {
+            console.log("Analyzing image...");
             imageDescription = await analyzeItemImage(data.image);
+            console.log("Image Analysis Result:", imageDescription);
         }
-        console.log("Image Description:", imageDescription);
-
-        const combinedDescription = `
-    User Description:
-    ${data.rawDescription}
-
-    Image Analysis:
-    ${imageDescription}
-    `;
 
         const semanticDescription = await generateSemanticDescription(
             data.name,
-            combinedDescription,
+            data.rawDescription,
+            imageDescription,
             data.category,
-            data.location
+            data.location,
+            data.locationDescription
         );
         console.log("Generated Semantic Description:", semanticDescription);
 
         const embeddingInput = `
-    Item Type: Lost
-    Name: ${data.name}
-    Category: ${data.category}
-    Description: ${semanticDescription}
-    Location: ${data.location ?? "Unknown"}
+    OBJECT TYPE (CRITICAL): ${data.category}
+
+    IMAGE ANALYSIS (PRIMARY SOURCE - MOST IMPORTANT):
+    ${imageDescription}
+
+    IMAGE ANALYSIS (REPEATED FOR EMPHASIS):
+    ${imageDescription}
+
+    IMAGE ANALYSIS (THIRD EMPHASIS):
+    ${imageDescription}
+
+    SEMANTIC SUMMARY:
+    ${semanticDescription}
+
+    ITEM NAME: ${data.name}
+
+    USER DESCRIPTION:
+    ${data.rawDescription}
+
+    LOCATION: ${data.location ?? "Unknown"}
+    LOCATION DETAILS: ${data.locationDescription ?? "None"}
+
+    COORDINATES: ${data.coordinates ? `${data.coordinates.lat}, ${data.coordinates.lng}` : "Unknown"}
     `;
 
+        console.log("Generating embedding...");
         const embedding = await generateEmbedding(embeddingInput);
-        console.log("Generated Embedding:", embedding);
 
         const embeddingId = await storeEmbedding(
             event.params.itemId,
@@ -105,9 +125,11 @@ export const onLostItemCreate = onDocumentCreated(
         await snap.ref.update({
             semanticDescription,
             embeddingId,
+            imageAnalysis: imageDescription,
         });
 
-        await runSimilarityCheck(event.params.itemId, "lost", embedding);
+        console.log("Running similarity check...");
+        await runSimilarityCheck(event.params.itemId, "lost", embedding, data);
     }
 );
 
@@ -122,35 +144,52 @@ export const onFoundItemCreate = onDocumentCreated(
         const data = snap.data();
         if (!data || data.embeddingId) return;
 
+        console.log("Processing Found Item:", event.params.itemId);
+
         let imageDescription = "";
-        console.log("Found Item Data:", data);
         if (data.image) {
+            console.log("Analyzing image...");
             imageDescription = await analyzeItemImage(data.image);
+            console.log("Image Analysis Result:", imageDescription);
         }
-
-        const combinedDescription = `
-    User Description:
-    ${data.rawDescription}
-
-    Image Analysis:
-    ${imageDescription}
-    `;
 
         const semanticDescription = await generateSemanticDescription(
             data.name,
-            combinedDescription,
+            data.rawDescription,
+            imageDescription,
             data.category,
-            data.location
+            data.location,
+            data.locationDescription
         );
+        console.log("Generated Semantic Description:", semanticDescription);
 
         const embeddingInput = `
-    Item Type: Found
-    Name: ${data.name}
-    Category: ${data.category}
-    Description: ${semanticDescription}
-    Location: ${data.location ?? "Unknown"}
+    OBJECT TYPE (CRITICAL): ${data.category}
+
+    IMAGE ANALYSIS (PRIMARY SOURCE - MOST IMPORTANT):
+    ${imageDescription}
+
+    IMAGE ANALYSIS (REPEATED FOR EMPHASIS):
+    ${imageDescription}
+
+    IMAGE ANALYSIS (THIRD EMPHASIS):
+    ${imageDescription}
+
+    SEMANTIC SUMMARY:
+    ${semanticDescription}
+
+    ITEM NAME: ${data.name}
+
+    USER DESCRIPTION:
+    ${data.rawDescription}
+
+    LOCATION: ${data.location ?? "Unknown"}
+    LOCATION DETAILS: ${data.locationDescription ?? "None"}
+
+    COORDINATES: ${data.coordinates ? `${data.coordinates.lat}, ${data.coordinates.lng}` : "Unknown"}
     `;
 
+        console.log("Generating embedding...");
         const embedding = await generateEmbedding(embeddingInput);
 
         const embeddingId = await storeEmbedding(
@@ -162,8 +201,10 @@ export const onFoundItemCreate = onDocumentCreated(
         await snap.ref.update({
             semanticDescription,
             embeddingId,
+            imageAnalysis: imageDescription,
         });
 
-        await runSimilarityCheck(event.params.itemId, "found", embedding);
+        console.log("Running similarity check...");
+        await runSimilarityCheck(event.params.itemId, "found", embedding, data);
     }
 );

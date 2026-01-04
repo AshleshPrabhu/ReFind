@@ -9,21 +9,35 @@ const visionModel = vertex.getGenerativeModel({
   model: "gemini-2.0-flash-001",
 });
 
-export async function analyzeItemImage(
-  imageUrl: string
-): Promise<string> {
+export async function analyzeItemImage(imageUrl: string): Promise<string> {
   const imageBase64 = await fetchImageAsBase64(imageUrl);
 
   const prompt = `
-  Describe this image of a lost or found item.
-  Focus on:
-  - object type
-  - color
-  - material
-  - brand or logo
-  - distinctive features
-
-  Return ONLY the description.
+  Analyze this image of a lost or found item in EXTREME DETAIL.
+  
+  CRITICAL: Be VERY specific about the exact object type. For example:
+  - "MacBook laptop computer" NOT just "book"
+  - "Leather wallet" NOT just "case"
+  - "iPhone smartphone" NOT just "device"
+  
+  Describe in order of importance:
+  1. EXACT object type/category (be extremely specific - laptop, phone, wallet, keys, etc.)
+  2. Primary brand/manufacturer if visible (Apple, Samsung, Nike, etc.)
+  3. Model or specific product name if identifiable
+  4. Primary color(s) - be specific (navy blue, not just blue)
+  5. Material (leather, metal, plastic, fabric, etc.)
+  6. Size estimate (small/medium/large or approximate dimensions)
+  7. Distinctive features:
+      - Logos, text, patterns
+      - Damage, scratches, wear marks
+      - Stickers, decorations, customizations
+      - Unique identifying marks
+  8. Condition (new, used, worn, damaged)
+  
+  BE EXTREMELY PRECISE. If it's a laptop, say "laptop computer". If it's a diary, say "paper diary/notebook".
+  Do NOT confuse electronic devices with books or other objects.
+  
+  Return ONLY the detailed description, no preamble.
   `;
 
   const response = await visionModel.generateContent({

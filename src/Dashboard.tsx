@@ -276,7 +276,7 @@ export default function Dashboard() {
       })
     );
 
-    return resolved.filter(Boolean) as MatchedItem[];
+    return resolved.filter(Boolean).sort((a, b) => b.matchPercentage - a.matchPercentage) as MatchedItem[];
   }
 
   async function fetchMatchedLostItems(foundItemId: string): Promise<MatchedItem[]> {
@@ -313,7 +313,7 @@ export default function Dashboard() {
       })
     );
 
-    return resolved.filter(Boolean) as MatchedItem[];
+    return resolved.filter(Boolean).sort((a, b) => b.matchPercentage - a.matchPercentage) as MatchedItem[];
   }
 
 
