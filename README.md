@@ -1,6 +1,14 @@
+<div align="center">
+
+![ReFind Landing Page](screenshots/landing.png)
+
+</div>
+
 # ReFind - AI-Powered Lost & Found Platform
 
 **An intelligent lost and found system for campuses and closed communities that uses multimodal AI to automatically match lost and found items through image understanding, semantic embeddings, and vector similarity search.**
+
+[![YouTube](https://img.shields.io/badge/YouTube-Demo-red?style=for-the-badge&logo=youtube)](https://youtu.be/Zx_Yteviihg)
 
 ---
 
@@ -11,6 +19,8 @@
   - [Solution](#solution)
 - [Key Features](#key-features)
 - [Architecture](#architecture)
+  - [System Architecture](#system-architecture)
+  - [Process Flow](#process-flow)
   - [Tech Stack](#tech-stack)
   - [System Design](#system-design)
   - [AI Pipeline](#ai-pipeline)
@@ -24,11 +34,9 @@
   - [Deployment](#deployment)
 - [API Documentation](#api-documentation)
 - [Screenshots](#screenshots)
-- [Performance & Scalability](#performance--scalability)
 - [Security & Privacy](#security--privacy)
 - [Limitations & Future Work](#limitations--future-work)
 - [Team](#team)
-- [License](#license)
 
 ---
 
@@ -122,6 +130,22 @@ ReFind leverages cutting-edge AI and vector search technology to solve these pro
 
 ## Architecture
 
+### System Architecture
+
+<div align="center">
+
+![System Architecture](screenshots/architecture.png)
+
+</div>
+
+### Process Flow
+
+<div align="center">
+
+![Process Flow](screenshots/flow.png)
+
+</div>
+
 ### Tech Stack
 
 #### Frontend
@@ -157,7 +181,7 @@ Google Cloud Vertex AI
 
 #### Infrastructure
 
-```md 
+```md
 Google Cloud Platform
 ├── Cloud Functions - Event-driven compute
 ├── Firestore - Managed NoSQL database
@@ -167,61 +191,14 @@ Google Cloud Platform
 
 ### System Design
 
-```md
-┌─────────────────────────────────────────────────────────────────┐
-│                         User Interface                           │
-│  (React + TypeScript + Tailwind)                                │
-└────────────────┬────────────────────────────────────────────────┘
-                 │
-                 ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                      Firebase Services                           │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐         │
-│  │     Auth     │  │  Firestore   │  │   Storage    │         │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘         │
-└─────────┼──────────────────┼──────────────────┼─────────────────┘
-          │                  │                  │
-          ▼                  ▼                  ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    Cloud Functions (Node.js)                     │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │  Firestore Triggers                                       │  │
-│  │  • onLostItemCreate   • onFoundItemCreate                │  │
-│  │  • onStatusUpdate     • manualRecheck                    │  │
-│  └──────────────┬───────────────────────────────────────────┘  │
-└─────────────────┼───────────────────────────────────────────────┘
-                  │
-                  ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    AI Processing Pipeline                        │
-│                                                                  │
-│  ┌─────────────┐      ┌──────────────┐      ┌──────────────┐  │
-│  │   Gemini    │─────▶│  Semantic    │─────▶│  Embedding   │  │
-│  │   Vision    │      │  Summary     │      │  Generation  │  │
-│  └─────────────┘      └──────────────┘      └──────┬───────┘  │
-│       │                                              │          │
-│       └──────────────────────────────────────────────┘          │
-│                              │                                  │
-│                              ▼                                  │
-│                  ┌──────────────────────┐                      │
-│                  │  Vertex AI Vector    │                      │
-│                  │  Search (Tree-AH)    │                      │
-│                  └──────────┬───────────┘                      │
-│                              │                                  │
-│                              ▼                                  │
-│                  ┌──────────────────────┐                      │
-│                  │  Similarity Matching │                      │
-│                  │  (Dot Product)       │                      │
-│                  └──────────┬───────────┘                      │
-└─────────────────────────────┼───────────────────────────────────┘
-                              │
-                              ▼
-                  ┌──────────────────────┐
-                  │  Store Matches in    │
-                  │  Firestore          │
-                  │  (Bidirectional)     │
-                  └──────────────────────┘
-```
+The ReFind platform employs a sophisticated microservices architecture leveraging Google Cloud Platform services:
+
+- **Frontend**: React-based SPA with TypeScript and Tailwind CSS
+- **Backend**: Firebase Cloud Functions for serverless compute
+- **Database**: Firestore for real-time data synchronization
+- **AI Processing**: Vertex AI with Gemini Vision and embedding models
+- **Vector Search**: Tree-AH algorithm for efficient similarity matching
+- **Storage**: Cloudinary for optimized image delivery
 
 ### AI Pipeline
 
