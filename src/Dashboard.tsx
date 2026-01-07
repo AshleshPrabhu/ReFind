@@ -1,4 +1,4 @@
-import { Package, Search, BarChart3, Menu, X, Upload, Check, Clock, Zap, X as XIcon, Edit3, LogOut, User, MapPin } from 'lucide-react';
+import { Package, Search, BarChart3, Menu, X, Upload, Check, Clock, Zap, X as XIcon, Edit3, LogOut, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useAuth } from './context/AuthContext';
 import { toast } from 'sonner';
