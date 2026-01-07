@@ -1053,123 +1053,53 @@ export default function Dashboard() {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-center relative h-96">
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="w-64 h-64 bg-gradient-to-br from-blue-500/10 to-indigo-500/10 rounded-full blur-3xl absolute"></div>
-                        <div className="w-48 h-48 bg-gradient-to-br from-green-500/10 to-emerald-500/10 rounded-full blur-2xl absolute top-20 left-10"></div>
+                    <div className="space-y-8">
+                      <div className="text-center">
+                        <h2 className="text-3xl font-bold text-white mb-4">How It Works</h2>
+                        <p className="text-gray-400">Simple steps to reunite you with your items</p>
                       </div>
-
-                      <div className="relative z-10 flex items-center justify-center h-full">
-                        <div className="relative" style={{ width: '200px', height: '380px' }}>
-                          <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-28 h-32 bg-gradient-to-b from-slate-200 via-slate-300 to-slate-400 rounded-3xl shadow-2xl border-2 border-slate-400 relative overflow-hidden">
-                            <div className="absolute top-2 left-1/2 transform -translate-x-1/2 w-16 h-6 bg-white/50 rounded-full blur-md"></div>
-                            <div className="absolute top-8 left-5 w-5 h-5 bg-gradient-to-br from-cyan-300 to-cyan-500 rounded shadow-lg shadow-cyan-500/70 border border-cyan-400">
-                              <div className="absolute inset-0.5 bg-cyan-600 rounded"></div>
-                              <div className="absolute top-1 left-1 w-1.5 h-1.5 bg-white/80 rounded-full"></div>
-                            </div>
-
-                            <div className="absolute top-8 right-5 w-5 h-5 bg-gradient-to-br from-cyan-300 to-cyan-500 rounded shadow-lg shadow-cyan-500/70 border border-cyan-400">
-                              <div className="absolute inset-0.5 bg-cyan-600 rounded"></div>
-                              <div className="absolute top-1 left-1 w-1.5 h-1.5 bg-white/80 rounded-full"></div>
-                            </div>
-
-                            <div className="absolute -top-6 left-6 w-1.5 h-6 bg-gradient-to-t from-slate-500 to-slate-300 rounded-full shadow-lg">
-                              <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-blue-400 rounded-full shadow-lg shadow-blue-400/80"></div>
-                            </div>
-
-                            <div className="absolute -top-6 right-6 w-1.5 h-6 bg-gradient-to-t from-slate-500 to-slate-300 rounded-full shadow-lg">
-                              <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-purple-400 rounded-full shadow-lg shadow-purple-400/80"></div>
-                            </div>
-
-                            <div className="absolute bottom-4 left-5 right-5 h-0.5 bg-gradient-to-r from-slate-600 via-slate-500 to-slate-600 rounded-full"></div>
+                      
+                      <div className="space-y-6">
+                        <div className="flex items-start gap-4">
+                          <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0">
+                            1
                           </div>
-
-
-                          <div className="absolute top-32 left-1/2 transform -translate-x-1/2 w-48 h-36 bg-gradient-to-b from-slate-300 via-slate-400 to-slate-700 rounded-3xl shadow-2xl border-2 border-slate-500 relative">
-                            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 w-20 h-10 bg-white/25 rounded-full blur-lg"></div>
-
-                            <div className="absolute top-3 left-1/2 transform -translate-x-1/2 w-28 h-28 bg-gradient-to-br from-slate-600 to-slate-900 rounded-2xl shadow-inner border-2 border-slate-700">
-                              
-                              <div className="absolute top-3 left-1/2 transform -translate-x-1/2 flex gap-3">
-                                <div className="w-2.5 h-2.5 bg-red-500 rounded-full shadow-lg shadow-red-500/70 animate-pulse"></div>
-                                <div className="w-2.5 h-2.5 bg-yellow-500 rounded-full shadow-lg shadow-yellow-500/70 animate-pulse" style={{animationDelay: '0.3s'}}></div>
-                                <div className="w-2.5 h-2.5 bg-green-500 rounded-full shadow-lg shadow-green-500/70 animate-pulse" style={{animationDelay: '0.6s'}}></div>
-                              </div>
-
-                              <div className="absolute top-12 left-3 right-3 space-y-2">
-                                <div className="flex gap-2">
-                                  <div className="flex-1 h-1 bg-blue-500/60 rounded"></div>
-                                  <div className="flex-1 h-1 bg-cyan-500/60 rounded"></div>
-                                  <div className="flex-1 h-1 bg-blue-500/60 rounded"></div>
-                                </div>
-                                <div className="flex gap-2">
-                                  <div className="flex-1 h-1 bg-cyan-500/60 rounded"></div>
-                                  <div className="flex-1 h-1 bg-blue-500/60 rounded"></div>
-                                  <div className="flex-1 h-1 bg-cyan-500/60 rounded"></div>
-                                </div>
-                                <div className="flex gap-2">
-                                  <div className="flex-1 h-1 bg-blue-500/60 rounded"></div>
-                                  <div className="flex-1 h-1 bg-cyan-500/60 rounded"></div>
-                                  <div className="flex-1 h-1 bg-blue-500/60 rounded"></div>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="absolute -left-3 top-6 w-5 h-20 bg-gradient-to-b from-slate-400 to-slate-600 rounded-lg shadow-lg border border-slate-500"></div>
-                            <div className="absolute -right-3 top-6 w-5 h-20 bg-gradient-to-b from-slate-400 to-slate-600 rounded-lg shadow-lg border border-slate-500"></div>
+                          <div>
+                            <h3 className="font-semibold text-white mb-1">Report Your Item</h3>
+                            <p className="text-gray-400 text-sm">Upload a photo and description of your lost or found item</p>
                           </div>
+                        </div>
 
-                          <div className="absolute top-36 -left-6 w-6 h-28 bg-gradient-to-b from-slate-400 to-slate-600 rounded-lg shadow-lg border border-slate-500 transform -rotate-40" style={{ transformOrigin: 'top right' }}>
-                            <div className="absolute top-10 inset-x-0 h-1.5 bg-gradient-to-r from-blue-500 to-cyan-500 shadow-lg"></div>
-
-                            <div className="absolute -top-4 -left-2 w-4 h-4 bg-gradient-to-br from-slate-300 to-slate-500 rounded shadow-md border border-slate-400">
-                              <div className="absolute top-0.5 left-0.5 w-1 h-1 bg-blue-400 rounded-full"></div>
-                            </div>
+                        <div className="flex items-start gap-4">
+                          <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0">
+                            2
                           </div>
-
-                          
-                          <div className="absolute top-40 -right-5 w-6 h-24 bg-gradient-to-b from-slate-400 to-slate-600 rounded-lg shadow-lg border border-slate-500">
-                            <div className="absolute top-8 inset-x-0 h-1.5 bg-gradient-to-r from-blue-500 to-cyan-500 shadow-lg"></div>
-
-                            <div className="absolute bottom-0 -right-1.5 w-4 h-4 bg-gradient-to-br from-slate-300 to-slate-500 rounded shadow-md border border-slate-400">
-                              <div className="absolute top-0.5 right-0.5 w-1 h-1 bg-green-400 rounded-full"></div>
-                            </div>
+                          <div>
+                            <h3 className="font-semibold text-white mb-1">AI Finds Matches</h3>
+                            <p className="text-gray-400 text-sm">Our AI analyzes your item and finds potential matches automatically</p>
                           </div>
+                        </div>
 
-                          <div className="absolute top-72 left-1/2 transform -translate-x-1/2 w-44 h-2.5 bg-gradient-to-r from-slate-600 via-slate-500 to-slate-600 rounded-full shadow-lg border border-slate-500">
-                            <div className="absolute inset-0 flex justify-around items-center px-4">
-                              <div className="w-1.5 h-1.5 bg-blue-400 rounded-full shadow-lg shadow-blue-400/60"></div>
-                              <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full shadow-lg shadow-cyan-400/60"></div>
-                              <div className="w-1.5 h-1.5 bg-green-400 rounded-full shadow-lg shadow-green-400/60"></div>
-                            </div>
+                        <div className="flex items-start gap-4">
+                          <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0">
+                            3
                           </div>
-
-                          <div className="absolute top-80 left-1/2 transform -translate-x-1/2 flex gap-5 w-28">
-                            <div className="w-4 h-20 bg-gradient-to-b from-slate-500 to-slate-700 rounded-lg shadow-lg border border-slate-600">
-                              <div className="absolute top-6 inset-x-0 h-1 bg-gradient-to-r from-cyan-500 to-blue-500 shadow-md"></div>
-                            </div>
-
-                            <div className="w-4 h-20 bg-gradient-to-b from-slate-500 to-slate-700 rounded-lg shadow-lg border border-slate-600">
-                              <div className="absolute top-6 inset-x-0 h-1 bg-gradient-to-r from-cyan-500 to-blue-500 shadow-md"></div>
-                            </div>
+                          <div>
+                            <h3 className="font-semibold text-white mb-1">View Your Matches</h3>
+                            <p className="text-gray-400 text-sm">Check your dashboard to see potential matches found by the AI</p>
                           </div>
+                        </div>
 
-                          {/* Feet */}
-                          <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 flex gap-5 w-28">
-                            <div className="w-5 h-3 bg-gradient-to-b from-slate-700 to-slate-900 rounded-b-lg shadow-lg border border-slate-800">
-                              <div className="absolute -top-0.5 left-0 right-0 h-0.5 bg-blue-400 opacity-70"></div>
-                            </div>
-
-                            <div className="w-5 h-3 bg-gradient-to-b from-slate-700 to-slate-900 rounded-b-lg shadow-lg border border-slate-800">
-                              <div className="absolute -top-0.5 left-0 right-0 h-0.5 bg-cyan-400 opacity-70"></div>
-                            </div>
+                        <div className="flex items-start gap-4">
+                          <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0">
+                            4
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-white mb-1">Reunite</h3>
+                            <p className="text-gray-400 text-sm">Coordinate with the other person to get your item back</p>
                           </div>
                         </div>
                       </div>
-
-                      <div className="absolute top-20 left-16 w-3 h-3 bg-gradient-to-br from-cyan-300 to-cyan-500 rounded-full shadow-lg shadow-cyan-500/60 animate-pulse"></div>
-                      <div className="absolute top-1/4 left-12 w-2 h-2 bg-blue-500 rounded-full shadow-md shadow-blue-500/50 animate-bounce" style={{ animationDuration: '2s' }}></div>
-                      <div className="absolute bottom-32 right-14 w-3 h-3 bg-gradient-to-br from-green-300 to-green-500 rounded-full shadow-lg shadow-green-500/60 animate-pulse" style={{ animationDelay: '0.5s' }}></div>
-                      <div className="absolute top-1/3 right-16 w-2 h-2 bg-purple-500 rounded-full shadow-md shadow-purple-500/50 animate-bounce" style={{ animationDelay: '1s', animationDuration: '2s' }}></div>
                     </div>
                   </div>
                 </div>
