@@ -9,6 +9,7 @@
 **An intelligent lost and found system for campuses and closed communities that uses multimodal AI to automatically match lost and found items through image understanding, semantic embeddings, and vector similarity search.**
 
 [![YouTube](https://img.shields.io/badge/YouTube-Demo-red?style=for-the-badge&logo=youtube)](https://youtu.be/Zx_Yteviihg)
+[![SupaDemo](https://img.shields.io/badge/SupaDemo-Interactive%20Demo-blue?style=for-the-badge)](https://app.supademo.com/demo/cmk6m45yz2ivpk6skr0cahjvj?utm_source=link)
 
 ---
 
@@ -759,7 +760,7 @@ For questions, suggestions, or support:
 
 <div align="center">
 
-#### Built with modern AI technology to reunite people with their lost belongings
+### Built with modern AI technology to reunite people with their lost belongings
 
 [⭐ Star this repository](https://github.com/AshleshPrabhu/ReFind) if you find it useful!
 
